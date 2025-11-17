@@ -11,14 +11,11 @@ import UploadDocument from "./pages/UploadDocument";
 import Documents from "./pages/Documents";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
-import { useTestUsersSetup } from "./hooks/useTestUsersSetup";
 
 const queryClient = new QueryClient();
 
-const AppContent = () => {
-  useTestUsersSetup();
-  
-  return (
+const App = () => (
+  <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -69,12 +66,6 @@ const AppContent = () => {
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
-  );
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AppContent />
   </QueryClientProvider>
 );
 
