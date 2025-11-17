@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Download, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Download, Loader2 } from 'lucide-react';
+import { AppLayout } from '@/components/AppLayout';
 
 type Document = {
   id: string;
@@ -18,14 +17,13 @@ type Document = {
   pago: boolean;
   data_envio: string;
   data_leitura: string | null;
-  client: {
+  clients: {
     nome_razao_social: string;
   } | null;
 };
 
 export default function Documents() {
-  const { user, userRole, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { userRole } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,15 +33,13 @@ export default function Documents() {
 
   const fetchDocuments = async () => {
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('documents')
         .select(`
           *,
-          client:clients(nome_razao_social)
+          clients(nome_razao_social)
         `)
         .order('data_envio', { ascending: false });
-
-      const { data, error } = await query;
 
       if (error) throw error;
       setDocuments(data || []);
@@ -60,17 +56,15 @@ export default function Documents() {
 
   const handleDocumentClick = async (doc: Document) => {
     try {
-      // Mark as read if first time
       if (!doc.data_leitura && userRole === 'cliente') {
         await supabase
           .from('documents')
           .update({ data_leitura: new Date().toISOString() })
           .eq('id', doc.id);
         
-        fetchDocuments(); // Refresh list
+        fetchDocuments();
       }
 
-      // Open document
       window.open(doc.file_url, '_blank');
     } catch (error: any) {
       toast({
@@ -90,7 +84,7 @@ export default function Documents() {
 
       if (error) throw error;
       
-      fetchDocuments(); // Refresh list
+      fetchDocuments();
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar status',
@@ -100,50 +94,39 @@ export default function Documents() {
     }
   };
 
-  const canGoBack = userRole !== 'cliente';
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            {canGoBack && (
-              <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-            <h1 className="text-2xl font-bold text-primary">Documentos Recebidos</h1>
-          </div>
-          <Button variant="outline" size="sm" onClick={signOut}>
-            Sair
-          </Button>
+    <AppLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Documentos</h2>
+          <p className="text-muted-foreground mt-2">Visualize todos os documentos enviados</p>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
         {loading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="bg-card rounded-lg border border-border overflow-x-auto">
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Documento</TableHead>
-                  {userRole !== 'cliente' && <TableHead>Cliente</TableHead>}
+                  {(userRole === 'admin' || userRole === 'colaborador') && (
+                    <TableHead>Cliente</TableHead>
+                  )}
                   <TableHead>Competência</TableHead>
                   <TableHead>Vencimento</TableHead>
-                  <TableHead>Valor da Guia</TableHead>
+                  <TableHead>Valor</TableHead>
                   <TableHead>Pagamento</TableHead>
-                  <TableHead>Data de Envio</TableHead>
-                  <TableHead>Data de Leitura</TableHead>
+                  <TableHead>Data Envio</TableHead>
+                  <TableHead>Data Leitura</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {documents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={userRole === 'cliente' ? 7 : 8} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       Nenhum documento encontrado
                     </TableCell>
                   </TableRow>
@@ -151,17 +134,16 @@ export default function Documents() {
                   documents.map((doc) => (
                     <TableRow key={doc.id}>
                       <TableCell>
-                        <Button
-                          variant="link"
-                          className="p-0 h-auto font-normal"
+                        <button
                           onClick={() => handleDocumentClick(doc)}
+                          className="text-primary hover:underline flex items-center gap-2"
                         >
-                          <Download className="h-4 w-4 mr-2" />
+                          <Download className="h-4 w-4" />
                           {doc.filename}
-                        </Button>
+                        </button>
                       </TableCell>
-                      {userRole !== 'cliente' && (
-                        <TableCell>{doc.client?.nome_razao_social || '-'}</TableCell>
+                      {(userRole === 'admin' || userRole === 'colaborador') && (
+                        <TableCell>{doc.clients?.nome_razao_social || '-'}</TableCell>
                       )}
                       <TableCell>{doc.competencia}</TableCell>
                       <TableCell>
@@ -174,7 +156,6 @@ export default function Documents() {
                         <Checkbox
                           checked={doc.pago}
                           onCheckedChange={() => handlePaidToggle(doc.id, doc.pago)}
-                          disabled={userRole !== 'cliente'}
                         />
                       </TableCell>
                       <TableCell>
@@ -190,7 +171,7 @@ export default function Documents() {
             </Table>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

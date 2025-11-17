@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Loader2 } from 'lucide-react';
+import { AppLayout } from '@/components/AppLayout';
 
 type Collaborator = {
   id: string;
@@ -33,8 +33,7 @@ type Collaborator = {
 };
 
 export default function Collaborators() {
-  const { signOut } = useAuth();
-  const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -57,7 +56,7 @@ export default function Collaborators() {
         .select(`
           id,
           nome,
-          user_id,
+          email,
           user_roles!inner(role),
           created_at
         `)
@@ -66,9 +65,9 @@ export default function Collaborators() {
       if (error) throw error;
 
       const collaboratorsData = data?.map((item: any) => ({
-        id: item.user_id,
+        id: item.id,
         nome: item.nome,
-        email: '', // Email needs to be fetched separately or stored
+        email: item.email || '',
         role: item.user_roles[0]?.role || 'colaborador',
         created_at: item.created_at,
       })) || [];
@@ -90,7 +89,6 @@ export default function Collaborators() {
     setIsSaving(true);
 
     try {
-      const { signUp } = useAuth();
       const { error } = await signUp(
         formData.email,
         formData.password,
@@ -125,34 +123,24 @@ export default function Collaborators() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold text-primary">Colaboradores</h1>
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Colaboradores</h2>
+            <p className="text-muted-foreground mt-2">Gerencie colaboradores e administradores do sistema</p>
           </div>
-          <Button variant="outline" size="sm" onClick={signOut}>
-            Sair
-          </Button>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex justify-end">
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="mr-2 h-4 w-4" />
                 Novo Colaborador
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Novo Colaborador</DialogTitle>
                 <DialogDescription>
@@ -160,7 +148,7 @@ export default function Collaborators() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="nome">Nome *</Label>
                   <Input
                     id="nome"
@@ -169,7 +157,7 @@ export default function Collaborators() {
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="email">E-mail *</Label>
                   <Input
                     id="email"
@@ -179,7 +167,7 @@ export default function Collaborators() {
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="password">Senha *</Label>
                   <Input
                     id="password"
@@ -187,10 +175,11 @@ export default function Collaborators() {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required
+                    minLength={6}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="role">Tipo de Usuário *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Tipo *</Label>
                   <Select
                     value={formData.role}
                     onValueChange={(value) => setFormData({ ...formData, role: value })}
@@ -204,16 +193,21 @@ export default function Collaborators() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full" disabled={isSaving}>
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Cadastrando...
-                    </>
-                  ) : (
-                    'Cadastrar'
-                  )}
-                </Button>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Cadastrando...
+                      </>
+                    ) : (
+                      'Cadastrar'
+                    )}
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -229,6 +223,7 @@ export default function Collaborators() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Data de Cadastro</TableHead>
                 </TableRow>
@@ -236,7 +231,7 @@ export default function Collaborators() {
               <TableBody>
                 {collaborators.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
                       Nenhum colaborador cadastrado
                     </TableCell>
                   </TableRow>
@@ -244,11 +239,12 @@ export default function Collaborators() {
                   collaborators.map((collab) => (
                     <TableRow key={collab.id}>
                       <TableCell>{collab.nome}</TableCell>
+                      <TableCell>{collab.email}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                           collab.role === 'admin' 
                             ? 'bg-primary/10 text-primary' 
-                            : 'bg-secondary text-secondary-foreground'
+                            : 'bg-secondary/10 text-secondary'
                         }`}>
                           {collab.role}
                         </span>
@@ -263,7 +259,7 @@ export default function Collaborators() {
             </Table>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
