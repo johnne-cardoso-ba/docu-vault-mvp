@@ -36,7 +36,7 @@ export default function UploadDocument() {
       const { data, error } = await supabase
         .from('clients')
         .select('id, nome_razao_social')
-        .eq('situacao', 'ativo')
+        .eq('situacao', 'Ativo')
         .order('nome_razao_social');
 
       if (error) throw error;
