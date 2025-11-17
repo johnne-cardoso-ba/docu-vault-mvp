@@ -10,6 +10,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -32,9 +33,21 @@ export function useAuth() {
             if (data && !error) {
               setUserRole(data.role as UserRole);
             }
+
+            // Check if user must change password
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('deve_trocar_senha')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profileData) {
+              setMustChangePassword(profileData.deve_trocar_senha || false);
+            }
           }, 0);
         } else {
           setUserRole(null);
+          setMustChangePassword(false);
         }
         
         setLoading(false);
@@ -57,6 +70,18 @@ export function useAuth() {
           if (data && !error) {
             setUserRole(data.role as UserRole);
           }
+
+          // Check if user must change password
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('deve_trocar_senha')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileData) {
+            setMustChangePassword(profileData.deve_trocar_senha || false);
+          }
+
           setLoading(false);
         }, 0);
       } else {
@@ -141,6 +166,8 @@ export function useAuth() {
     user,
     session,
     userRole,
+    mustChangePassword,
+    setMustChangePassword,
     loading,
     signIn,
     signUp,

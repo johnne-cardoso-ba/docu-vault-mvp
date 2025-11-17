@@ -1,12 +1,16 @@
 import { ReactNode } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
+import { useAuth } from '@/hooks/useAuth';
+import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 
 interface AppLayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { user, mustChangePassword, setMustChangePassword } = useAuth();
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -20,6 +24,14 @@ export function AppLayout({ children }: AppLayoutProps) {
           </main>
         </div>
       </div>
+      
+      {user && mustChangePassword && (
+        <ChangePasswordDialog
+          open={mustChangePassword}
+          userId={user.id}
+          onSuccess={() => setMustChangePassword(false)}
+        />
+      )}
     </SidebarProvider>
   );
 }
