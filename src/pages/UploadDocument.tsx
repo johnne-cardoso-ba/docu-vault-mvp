@@ -4,17 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Upload, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Upload, Loader2 } from 'lucide-react';
+import { AppLayout } from '@/components/AppLayout';
 
 type Client = {
   id: string;
@@ -22,8 +16,7 @@ type Client = {
 };
 
 export default function UploadDocument() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -72,7 +65,6 @@ export default function UploadDocument() {
     setLoading(true);
 
     try {
-      // Upload file to storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${formData.client_id}/${fileName}`;
@@ -83,12 +75,10 @@ export default function UploadDocument() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('documents')
         .getPublicUrl(filePath);
 
-      // Insert document record
       const { error: insertError } = await supabase.from('documents').insert([{
         client_id: formData.client_id,
         uploaded_by: user?.id,
@@ -103,7 +93,6 @@ export default function UploadDocument() {
 
       toast({ title: 'Documento enviado com sucesso!' });
       
-      // Reset form
       setFile(null);
       setFormData({
         client_id: '',
@@ -112,7 +101,6 @@ export default function UploadDocument() {
         valor_guia: '',
       });
       
-      // Clear file input
       const fileInput = document.getElementById('file') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
       
@@ -128,32 +116,20 @@ export default function UploadDocument() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold text-primary">Enviar Documento</h1>
-          </div>
-          <Button variant="outline" size="sm" onClick={signOut}>
-            Sair
-          </Button>
+    <AppLayout>
+      <div className="max-w-2xl">
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-foreground">Enviar Documento</h2>
+          <p className="text-muted-foreground mt-2">Faça upload de documentos para os clientes</p>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Upload de Documento
-            </CardTitle>
+            <CardTitle>Novo Documento</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="client">Cliente *</Label>
                 <Select
                   value={formData.client_id}
@@ -173,25 +149,20 @@ export default function UploadDocument() {
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="file">Documento *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="file">Arquivo *</Label>
                 <Input
                   id="file"
                   type="file"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   required
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ofx,.txt"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Formatos aceitos: PDF, Word, Excel, OFX, TXT
-                </p>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="competencia">Competência *</Label>
                 <Input
                   id="competencia"
-                  type="text"
                   placeholder="Ex: 01/2025"
                   value={formData.competencia}
                   onChange={(e) => setFormData({ ...formData, competencia: e.target.value })}
@@ -199,7 +170,7 @@ export default function UploadDocument() {
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="vencimento">Data de Vencimento</Label>
                 <Input
                   id="vencimento"
@@ -209,7 +180,7 @@ export default function UploadDocument() {
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="valor">Valor da Guia</Label>
                 <Input
                   id="valor"
@@ -237,7 +208,7 @@ export default function UploadDocument() {
             </form>
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

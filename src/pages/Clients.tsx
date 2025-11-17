@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Edit, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Edit, Loader2 } from 'lucide-react';
+import { AppLayout } from '@/components/AppLayout';
 
 type Client = {
   id: string;
@@ -34,8 +34,7 @@ type Client = {
 };
 
 export default function Clients() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -57,7 +56,7 @@ export default function Clients() {
       const { data, error } = await supabase
         .from('clients')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false});
 
       if (error) throw error;
       setClients(data || []);
@@ -129,34 +128,24 @@ export default function Clients() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold text-primary">Cadastro de Clientes</h1>
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Clientes</h2>
+            <p className="text-muted-foreground mt-2">Gerencie o cadastro de clientes do sistema</p>
           </div>
-          <Button variant="outline" size="sm" onClick={signOut}>
-            Sair
-          </Button>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex justify-end">
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="mr-2 h-4 w-4" />
                 Novo Cliente
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
                 <DialogDescription>
@@ -164,7 +153,7 @@ export default function Clients() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="nome">Nome/Razão Social *</Label>
                   <Input
                     id="nome"
@@ -173,7 +162,7 @@ export default function Clients() {
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="cnpj">CNPJ/CPF *</Label>
                   <Input
                     id="cnpj"
@@ -182,7 +171,7 @@ export default function Clients() {
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="email">E-mail *</Label>
                   <Input
                     id="email"
@@ -192,7 +181,7 @@ export default function Clients() {
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="telefone">Telefone</Label>
                   <Input
                     id="telefone"
@@ -200,7 +189,7 @@ export default function Clients() {
                     onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="situacao">Situação *</Label>
                   <Select
                     value={formData.situacao}
@@ -215,9 +204,14 @@ export default function Clients() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full">
-                  {editingClient ? 'Atualizar' : 'Cadastrar'}
-                </Button>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit">
+                    {editingClient ? 'Atualizar' : 'Cadastrar'}
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -237,7 +231,7 @@ export default function Clients() {
                   <TableHead>E-mail</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Situação</TableHead>
-                  <TableHead>Ações</TableHead>
+                  <TableHead className="w-[100px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -279,7 +273,7 @@ export default function Clients() {
             </Table>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
