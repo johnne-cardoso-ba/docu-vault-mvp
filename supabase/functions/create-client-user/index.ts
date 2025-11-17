@@ -61,6 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
         id: authData.user.id,
         nome: nome,
         email: email,
+        deve_trocar_senha: true, // Mark that user must change password
       });
 
     if (profileError) {

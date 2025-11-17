@@ -109,6 +109,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          deve_trocar_senha: boolean | null
           email: string
           id: string
           nome: string
@@ -116,6 +117,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deve_trocar_senha?: boolean | null
           email: string
           id: string
           nome: string
@@ -123,6 +125,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deve_trocar_senha?: boolean | null
           email?: string
           id?: string
           nome?: string
