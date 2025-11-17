@@ -51,26 +51,32 @@ export default function Collaborators() {
 
   const fetchCollaborators = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('role', ['admin', 'colaborador']);
+
+      if (rolesError) throw rolesError;
+
+      const userIds = rolesData?.map(r => r.user_id) || [];
+
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          nome,
-          email,
-          user_roles!inner(role),
-          created_at
-        `)
-        .in('user_roles.role', ['admin', 'colaborador']);
+        .select('id, nome, email, created_at')
+        .in('id', userIds);
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
 
-      const collaboratorsData = data?.map((item: any) => ({
-        id: item.id,
-        nome: item.nome,
-        email: item.email || '',
-        role: item.user_roles[0]?.role || 'colaborador',
-        created_at: item.created_at,
-      })) || [];
+      const collaboratorsData = profilesData?.map((profile: any) => {
+        const userRole = rolesData?.find(r => r.user_id === profile.id);
+        return {
+          id: profile.id,
+          nome: profile.nome,
+          email: profile.email,
+          role: userRole?.role || 'colaborador',
+          created_at: profile.created_at,
+        };
+      }) || [];
 
       setCollaborators(collaboratorsData);
     } catch (error: any) {
