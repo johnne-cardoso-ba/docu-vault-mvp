@@ -21,8 +21,9 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Edit, Loader2 } from 'lucide-react';
+import { Plus, Edit, Loader2, KeyRound } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
+import { ResetPasswordDialog } from '@/components/ResetPasswordDialog';
 
 type Client = {
   id: string;
@@ -40,6 +41,7 @@ export default function Clients() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [resetPasswordClient, setResetPasswordClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     nome_razao_social: '',
     cnpj_cpf: '',
@@ -301,13 +303,24 @@ export default function Clients() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(client)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(client)}
+                            title="Editar cliente"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setResetPasswordClient(client)}
+                            title="Redefinir senha"
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -317,6 +330,15 @@ export default function Clients() {
           </div>
         )}
       </div>
+
+      {resetPasswordClient && (
+        <ResetPasswordDialog
+          open={!!resetPasswordClient}
+          onOpenChange={(open) => !open && setResetPasswordClient(null)}
+          clientId={resetPasswordClient.id}
+          clientName={resetPasswordClient.nome_razao_social}
+        />
+      )}
     </AppLayout>
   );
 }
