@@ -44,7 +44,7 @@ export default function Clients() {
     cnpj_cpf: '',
     email: '',
     telefone: '',
-    situacao: 'ativo',
+    situacao: 'Ativo',
   });
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export default function Clients() {
       cnpj_cpf: '',
       email: '',
       telefone: '',
-      situacao: 'ativo',
+      situacao: 'Ativo',
     });
     setEditingClient(null);
   };
@@ -199,8 +199,8 @@ export default function Clients() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ativo">Ativo</SelectItem>
-                      <SelectItem value="inativo">Inativo</SelectItem>
+                      <SelectItem value="Ativo">Ativo</SelectItem>
+                      <SelectItem value="Inativo">Inativo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
