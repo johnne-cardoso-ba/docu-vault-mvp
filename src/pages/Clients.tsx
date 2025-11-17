@@ -97,35 +97,25 @@ export default function Clients() {
         if (error) throw error;
 
         // Create user account for the client
-        try {
-          const { data: userData, error: userError } = await supabase.functions.invoke('create-client-user', {
-            body: {
-              email: formData.email,
-              nome: formData.nome_razao_social,
-              clientId: clientData.id,
-            },
-          });
+        const { data: userData, error: userError } = await supabase.functions.invoke('create-client-user', {
+          body: {
+            email: formData.email,
+            nome: formData.nome_razao_social,
+            clientId: clientData.id,
+          },
+        });
 
-          if (userError) {
-            console.error('Erro ao criar usuário:', userError);
-            toast({
-              title: 'Cliente cadastrado, mas houve erro ao criar usuário',
-              description: 'O cliente foi salvo, mas não foi possível criar o acesso.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({ 
-              title: 'Cliente cadastrado com sucesso!',
-              description: `Senha padrão: ${userData.defaultPassword}`,
-            });
-          }
-        } catch (userCreationError: any) {
-          console.error('Erro ao criar usuário:', userCreationError);
-          toast({
-            title: 'Cliente cadastrado com sucesso!',
-            description: 'Usuário será criado posteriormente.',
-          });
+        if (userError) {
+          console.error('Erro ao criar usuário:', userError);
+          // Rollback: delete the client if user creation fails
+          await supabase.from('clients').delete().eq('id', clientData.id);
+          throw new Error('Falha ao criar usuário de acesso. Por favor, tente novamente.');
         }
+
+        toast({ 
+          title: 'Cliente cadastrado com sucesso!',
+          description: `Senha padrão: ${userData.defaultPassword}`,
+        });
       }
 
       setIsDialogOpen(false);
