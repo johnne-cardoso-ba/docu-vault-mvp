@@ -38,6 +38,7 @@ export default function Clients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     nome_razao_social: '',
@@ -73,6 +74,7 @@ export default function Clients() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
 
     try {
       if (editingClient) {
@@ -84,12 +86,44 @@ export default function Clients() {
         if (error) throw error;
         toast({ title: 'Cliente atualizado com sucesso!' });
       } else {
-        const { error } = await supabase
+        const { data: clientData, error } = await supabase
           .from('clients')
-          .insert([{ ...formData, created_by: user?.id }]);
+          .insert([{ ...formData, created_by: user?.id }])
+          .select()
+          .single();
 
         if (error) throw error;
-        toast({ title: 'Cliente cadastrado com sucesso!' });
+
+        // Create user account for the client
+        try {
+          const { data: userData, error: userError } = await supabase.functions.invoke('create-client-user', {
+            body: {
+              email: formData.email,
+              nome: formData.nome_razao_social,
+              clientId: clientData.id,
+            },
+          });
+
+          if (userError) {
+            console.error('Erro ao criar usuário:', userError);
+            toast({
+              title: 'Cliente cadastrado, mas houve erro ao criar usuário',
+              description: 'O cliente foi salvo, mas não foi possível criar o acesso.',
+              variant: 'destructive',
+            });
+          } else {
+            toast({ 
+              title: 'Cliente cadastrado com sucesso!',
+              description: `Senha padrão: ${userData.defaultPassword}`,
+            });
+          }
+        } catch (userCreationError: any) {
+          console.error('Erro ao criar usuário:', userCreationError);
+          toast({
+            title: 'Cliente cadastrado com sucesso!',
+            description: 'Usuário será criado posteriormente.',
+          });
+        }
       }
 
       setIsDialogOpen(false);
@@ -101,6 +135,8 @@ export default function Clients() {
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -205,11 +241,18 @@ export default function Clients() {
                   </Select>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
                     Cancelar
                   </Button>
-                  <Button type="submit">
-                    {editingClient ? 'Atualizar' : 'Cadastrar'}
+                  <Button type="submit" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      editingClient ? 'Atualizar' : 'Cadastrar'
+                    )}
                   </Button>
                 </div>
               </form>
