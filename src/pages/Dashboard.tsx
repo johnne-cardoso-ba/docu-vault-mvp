@@ -1,98 +1,90 @@
 import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Users, Upload, LogOut, UserPlus } from 'lucide-react';
+import { Users, FileText, Upload, UserCog } from 'lucide-react';
+import { AppLayout } from '@/components/AppLayout';
 
 export default function Dashboard() {
-  const { user, userRole, signOut } = useAuth();
+  const { userRole } = useAuth();
   const navigate = useNavigate();
 
-  const isAdmin = userRole === 'admin';
-  const isColaborador = userRole === 'colaborador';
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary">
-      <header className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-primary">Sistema de Contabilidade</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              {user?.email} ({userRole})
-            </span>
-            <Button variant="outline" size="sm" onClick={signOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair
-            </Button>
-          </div>
+    <AppLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
+          <p className="text-muted-foreground mt-2">Bem-vindo ao sistema de gestão de documentos contábeis</p>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(isAdmin || isColaborador) && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {userRole === 'admin' && (
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/colaboradores')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCog className="h-5 w-5 text-primary" />
+                  Colaboradores
+                </CardTitle>
+                <CardDescription>Gerenciar usuários colaboradores</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Cadastrar e gerenciar colaboradores do sistema
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {(userRole === 'admin' || userRole === 'colaborador') && (
             <>
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/clientes')}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/clientes')}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
-                    Cadastro de Clientes
+                    Clientes
                   </CardTitle>
+                  <CardDescription>Gerenciar clientes</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    Gerencie o cadastro de clientes do sistema
+                    Cadastrar e gerenciar informações dos clientes
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/enviar-documento')}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/enviar-documento')}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Upload className="h-5 w-5 text-primary" />
                     Enviar Documentos
                   </CardTitle>
+                  <CardDescription>Upload de documentos</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    Envie documentos para os clientes
+                    Fazer upload de documentos para os clientes
                   </p>
                 </CardContent>
               </Card>
             </>
           )}
 
-          {isAdmin && (
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/colaboradores')}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserPlus className="h-5 w-5 text-primary" />
-                  Colaboradores
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Gerencie colaboradores e administradores
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/documentos')}>
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/documentos')}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" />
-                Documentos Recebidos
+                Documentos
               </CardTitle>
+              <CardDescription>Visualizar documentos</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Visualize todos os documentos recebidos
+                Visualizar e gerenciar todos os documentos enviados
               </p>
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
