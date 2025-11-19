@@ -41,7 +41,6 @@ export function AppSidebar() {
     { title: 'Atendimento', url: '/solicitacoes-internas', icon: Headset },
     { title: 'Enviar Documento', url: '/enviar-documento', icon: Upload },
     { title: 'Documentos', url: '/documentos', icon: FileText },
-    { title: 'NFS-e', url: '/nfse', icon: Receipt },
   ];
 
   const clienteItems = [

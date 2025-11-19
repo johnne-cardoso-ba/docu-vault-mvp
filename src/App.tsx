@@ -112,7 +112,7 @@ const App = () => (
           <Route 
             path="/nfse" 
             element={
-              <ProtectedRoute allowedRoles={['admin', 'colaborador']}>
+              <ProtectedRoute allowedRoles={['admin']}>
                 <NFSe />
               </ProtectedRoute>
             } 
