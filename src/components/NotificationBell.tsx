@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +37,8 @@ export function NotificationBell() {
   const navigate = useNavigate();
   
   // Configurar presença e detectar usuários online (apenas para admins e colaboradores)
-  usePresence(userRole === 'cliente' ? undefined : (onlineUser) => {
+  const handleUserOnline = useCallback((onlineUser: any) => {
+    if (userRole === 'cliente') return;
     // Verificar se é colaborador/admin antes de notificar
     supabase
       .from('user_roles')
@@ -70,7 +71,9 @@ export function NotificationBell() {
           });
         }
       });
-  });
+  }, [userRole]);
+
+  usePresence(handleUserOnline);
   
   const [audio] = useState(() => {
     const audio = new Audio();
