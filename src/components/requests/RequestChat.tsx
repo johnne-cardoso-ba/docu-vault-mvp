@@ -7,9 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User, ArrowRightLeft, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { TransferRequestDialog } from './TransferRequestDialog';
+import { RatingDialog } from './RatingDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RequestChatProps {
   request: any;
@@ -39,6 +42,7 @@ const statusColors: Record<string, string> = {
 
 export function RequestChat({ request, onBack, isInternal = false }: RequestChatProps) {
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
@@ -46,10 +50,16 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
   const [file, setFile] = useState<File | null>(null);
   const [currentStatus, setCurrentStatus] = useState(request.status);
   const [currentSetor, setCurrentSetor] = useState(request.setor);
+  const [atendente, setAtendente] = useState<any>(null);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [showRatingDialog, setShowRatingDialog] = useState(false);
+  const [hasRating, setHasRating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadMessages();
+    loadAtendente();
+    checkRating();
     scrollToBottom();
   }, []);
 
@@ -75,6 +85,40 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
       console.error('Erro ao carregar mensagens:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAtendente = async () => {
+    if (!request.atendente_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, email')
+        .eq('id', request.atendente_id)
+        .single();
+
+      if (error) throw error;
+      setAtendente(data);
+    } catch (error) {
+      console.error('Erro ao carregar atendente:', error);
+    }
+  };
+
+  const checkRating = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('request_ratings')
+        .select('id')
+        .eq('request_id', request.id)
+        .single();
+
+      if (data) {
+        setHasRating(true);
+      }
+    } catch (error) {
+      // Não há avaliação ainda
+      setHasRating(false);
     }
   };
 
@@ -265,38 +309,70 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
                 <span className="text-muted-foreground">{request.clients.nome_razao_social}</span>
               </div>
             )}
+            {!isInternal && atendente && (
+              <div className="flex items-center gap-2 text-sm">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Atendente:</span>
+                <span className="text-muted-foreground">{atendente.nome}</span>
+              </div>
+            )}
           </div>
 
           {isInternal && (
-            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Alterar Status</label>
-                <Select value={currentStatus} onValueChange={handleUpdateStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="aberto">Aberto</SelectItem>
-                    <SelectItem value="em_atendimento">Em Atendimento</SelectItem>
-                    <SelectItem value="concluido">Concluído</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTransferDialog(true)}
+                >
+                  <ArrowRightLeft className="mr-2 h-4 w-4" />
+                  Transferir Atendimento
+                </Button>
               </div>
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Transferir Setor</label>
-                <Select value={currentSetor} onValueChange={handleUpdateSetor}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fiscal">Fiscal</SelectItem>
-                    <SelectItem value="pessoal">Pessoal</SelectItem>
-                    <SelectItem value="contabil">Contábil</SelectItem>
-                    <SelectItem value="controladoria">Controladoria</SelectItem>
-                    <SelectItem value="procuradoria">Procuradoria</SelectItem>
-                  </SelectContent>
-                </Select>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Alterar Status</label>
+                  <Select value={currentStatus} onValueChange={handleUpdateStatus}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="aberto">Aberto</SelectItem>
+                      <SelectItem value="em_atendimento">Em Atendimento</SelectItem>
+                      <SelectItem value="concluido">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Transferir Setor</label>
+                  <Select value={currentSetor} onValueChange={handleUpdateSetor}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fiscal">Fiscal</SelectItem>
+                      <SelectItem value="pessoal">Pessoal</SelectItem>
+                      <SelectItem value="contabil">Contábil</SelectItem>
+                      <SelectItem value="controladoria">Controladoria</SelectItem>
+                      <SelectItem value="procuradoria">Procuradoria</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+            </div>
+          )}
+
+          {!isInternal && currentStatus === 'concluido' && !hasRating && (
+            <div className="pt-4 border-t">
+              <Button
+                onClick={() => setShowRatingDialog(true)}
+                className="w-full"
+              >
+                <Star className="mr-2 h-4 w-4" />
+                Avaliar Atendimento
+              </Button>
             </div>
           )}
         </div>
@@ -398,6 +474,26 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
           </div>
         </div>
       </Card>
+
+      <TransferRequestDialog
+        open={showTransferDialog}
+        onOpenChange={setShowTransferDialog}
+        request={request}
+        onTransferComplete={() => {
+          loadMessages();
+          loadAtendente();
+          onBack();
+        }}
+      />
+
+      <RatingDialog
+        open={showRatingDialog}
+        onOpenChange={setShowRatingDialog}
+        request={request}
+        onRatingComplete={() => {
+          checkRating();
+        }}
+      />
     </div>
   );
 }

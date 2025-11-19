@@ -215,6 +215,44 @@ export type Database = {
           },
         ]
       }
+      request_ratings: {
+        Row: {
+          atendente_id: string
+          client_id: string
+          comentario: string | null
+          created_at: string
+          id: string
+          rating: number
+          request_id: string
+        }
+        Insert: {
+          atendente_id: string
+          client_id: string
+          comentario?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          request_id: string
+        }
+        Update: {
+          atendente_id?: string
+          client_id?: string
+          comentario?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_ratings_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requests: {
         Row: {
           assunto: string
