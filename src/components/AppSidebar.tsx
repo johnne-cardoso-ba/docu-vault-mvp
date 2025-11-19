@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Upload, LogOut, UserCog, MessageSquare, Headset } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Upload, LogOut, UserCog, MessageSquare, Headset, User } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -95,6 +95,18 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-border p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/perfil')}>
+              <NavLink
+                to="/perfil"
+                className="hover:bg-muted/50"
+                activeClassName="bg-accent text-accent-foreground font-medium"
+              >
+                <User className="h-5 w-5" />
+                {!isCollapsed && <span>Meu Perfil</span>}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut} className="hover:bg-destructive/10 hover:text-destructive">
               <LogOut className="h-5 w-5" />

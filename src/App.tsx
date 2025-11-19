@@ -7,6 +7,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Collaborators from "./pages/Collaborators";
+import Profile from "./pages/Profile";
 import UploadDocument from "./pages/UploadDocument";
 import Documents from "./pages/Documents";
 import Requests from "./pages/Requests";
@@ -77,6 +78,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['admin', 'colaborador']}>
                 <InternalRequests />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/perfil" 
+            element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             } 
           />
