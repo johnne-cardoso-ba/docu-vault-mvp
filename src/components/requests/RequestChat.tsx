@@ -82,25 +82,70 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
           filter: `request_id=eq.${request.id}`,
         },
         async (payload) => {
+          console.log('📨 Nova mensagem recebida via realtime:', payload);
+          
           // Buscar perfil do usuário que enviou a mensagem
           const { data: profile } = await supabase
             .from('profiles')
             .select('id, nome, avatar_url')
-            .eq('id', payload.new.user_id)
+            .eq('id', (payload.new as any).user_id)
             .single();
 
-          const newMessage = {
+          const newMessage: any = {
             ...payload.new,
             profiles: profile || null
           };
 
-          setMessages((current) => [...current, newMessage]);
+          setMessages((current) => {
+            // Evitar duplicatas
+            if (current.some(msg => msg.id === newMessage.id)) {
+              return current;
+            }
+            return [...current, newMessage];
+          });
           
           // Marcar como lida se não for mensagem do usuário logado
           const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (payload.new.user_id !== currentUser?.id) {
-            markMessageAsRead(payload.new.id);
+          if ((payload.new as any).user_id !== currentUser?.id) {
+            markMessageAsRead((payload.new as any).id);
           }
+          
+          // Scroll automático para o final
+          setTimeout(() => scrollToBottom(), 100);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'request_messages',
+          filter: `request_id=eq.${request.id}`,
+        },
+        async (payload) => {
+          console.log('✏️ Mensagem atualizada via realtime:', payload);
+          
+          setMessages((current) =>
+            current.map((msg) =>
+              msg.id === (payload.new as any).id ? { ...msg, ...payload.new } : msg
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'request_messages',
+          filter: `request_id=eq.${request.id}`,
+        },
+        (payload) => {
+          console.log('🗑️ Mensagem deletada via realtime:', payload);
+          
+          setMessages((current) =>
+            current.filter((msg) => msg.id !== (payload.old as any).id)
+          );
         }
       )
       .on(
@@ -119,9 +164,15 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
           );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔌 Status da conexão realtime:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Conectado ao canal de realtime para request:', request.id);
+        }
+      });
 
     return () => {
+      console.log('❌ Desconectando do canal realtime');
       supabase.removeChannel(channel);
     };
   }, [request.id]);
