@@ -61,7 +61,11 @@ export function RequestsList() {
 
       const { data, error } = await supabase
         .from('requests')
-        .select('*, clients!inner(nome_razao_social, email), profiles!requests_atendente_id_fkey(nome)')
+        .select(`
+          *,
+          clients!inner(nome_razao_social, email),
+          atendente:profiles(nome)
+        `)
         .eq('clients.email', profile.email)
         .order('created_at', { ascending: false });
 
@@ -140,10 +144,10 @@ export function RequestsList() {
           </p>
           
           <div className="flex flex-col gap-1">
-            {request.profiles?.nome && (
+            {request.atendente?.nome && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <MessageSquare className="h-3 w-3" />
-                Atendente: {request.profiles.nome}
+                Atendente: {request.atendente.nome}
               </div>
             )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
