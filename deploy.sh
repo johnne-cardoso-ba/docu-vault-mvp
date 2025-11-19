@@ -48,6 +48,7 @@ if [ ! -d "$APP_DIR/dist" ]; then
 fi
 
 echo -e "${YELLOW}🔧 Corrigindo permissões...${NC}"
+chmod 755 $APP_DIR
 chown -R $APP_USER:$APP_USER $APP_DIR
 chmod -R 755 $APP_DIR/dist
 
