@@ -36,9 +36,18 @@ export function NotificationBell() {
   const { user, userRole } = useAuth();
   const navigate = useNavigate();
   
+  // Rastrear se já notificou na sessão atual
+  const [notifiedUsers] = useState(() => new Set<string>());
+  
   // Configurar presença e detectar usuários online (apenas para admins e colaboradores)
   const handleUserOnline = useCallback((onlineUser: any) => {
     if (userRole === 'cliente') return;
+    
+    // Verificar se já notificou esse usuário nesta sessão
+    if (notifiedUsers.has(onlineUser.user_id)) {
+      return;
+    }
+    
     // Verificar se é colaborador/admin antes de notificar
     supabase
       .from('user_roles')
@@ -48,6 +57,9 @@ export function NotificationBell() {
       .then(({ data }) => {
         // Só notificar se for colaborador ou admin (não notificar clientes)
         if (data && (data.role === 'colaborador' || data.role === 'admin')) {
+          // Adicionar ao set de usuários notificados
+          notifiedUsers.add(onlineUser.user_id);
+          
           const presenceNotification: Notification = {
             id: `presence-${onlineUser.user_id}-${Date.now()}`,
             request_id: '',
@@ -71,7 +83,7 @@ export function NotificationBell() {
           });
         }
       });
-  }, [userRole]);
+  }, [userRole, notifiedUsers]);
 
   usePresence(handleUserOnline);
   

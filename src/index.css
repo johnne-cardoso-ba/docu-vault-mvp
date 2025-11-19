@@ -88,13 +88,13 @@ All colors MUST be HSL.
     --input: 214 31.8% 91.4%;
     --ring: 189 100% 44%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 210 100% 16%;
-    --sidebar-primary: 210 100% 16%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 189 100% 44%;
+    --sidebar-background: 210 100% 16%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 210 100% 16%;
+    --sidebar-accent: 210 100% 25%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 13% 91%;
+    --sidebar-border: 210 100% 20%;
     --sidebar-ring: 189 100% 44%;
   }
 
@@ -118,13 +118,13 @@ All colors MUST be HSL.
     --border: 210 50% 20%;
     --input: 210 50% 20%;
     --ring: 189 100% 44%;
-    --sidebar-background: 210 100% 10%;
-    --sidebar-foreground: 0 0% 98%;
+    --sidebar-background: 210 100% 12%;
+    --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 189 100% 44%;
     --sidebar-primary-foreground: 210 100% 16%;
-    --sidebar-accent: 210 50% 20%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 210 50% 20%;
+    --sidebar-accent: 210 100% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 100% 16%;
     --sidebar-ring: 189 100% 44%;
   }
 }

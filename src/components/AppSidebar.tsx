@@ -15,7 +15,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
-import logo from '@/assets/logo-escritura.png';
+import logo from '@/assets/logo-branca.png';
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -42,6 +42,7 @@ export function AppSidebar() {
   ];
 
   const clienteItems = [
+    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Documentos', url: '/documentos', icon: FileText },
     { title: 'Solicitações', url: '/solicitacoes', icon: MessageSquare },
   ];
