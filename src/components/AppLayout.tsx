@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -16,8 +17,9 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-14 border-b border-border flex items-center px-4 bg-background sticky top-0 z-10">
+          <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background sticky top-0 z-10">
             <SidebarTrigger />
+            <NotificationBell />
           </header>
           <main className="flex-1 p-6">
             {children}

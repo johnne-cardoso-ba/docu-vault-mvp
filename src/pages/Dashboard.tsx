@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, Upload, UserCog, Eye, UserX, Loader2, AlertCircle } from 'lucide-react';
+import { Users, FileText, Upload, UserCog, Eye, UserX, Loader2, AlertCircle, Headset, MessageSquare } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -12,6 +12,8 @@ type AnalyticsData = {
   inactiveClients: number;
   totalClients: number;
   totalDocuments: number;
+  pendingRequests: number;
+  totalRequests: number;
 };
 
 export default function Dashboard() {
@@ -22,6 +24,8 @@ export default function Dashboard() {
     inactiveClients: 0,
     totalClients: 0,
     totalDocuments: 0,
+    pendingRequests: 0,
+    totalRequests: 0,
   });
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
@@ -79,11 +83,24 @@ export default function Dashboard() {
         .select('*', { count: 'exact', head: true })
         .eq('role', 'cliente');
 
+      // Fetch pending requests (aberto ou em_atendimento)
+      const { count: pendingRequestsCount } = await supabase
+        .from('requests')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['aberto', 'em_atendimento']);
+
+      // Fetch total requests
+      const { count: totalRequestsCount } = await supabase
+        .from('requests')
+        .select('*', { count: 'exact', head: true });
+
       setAnalytics({
         unreadDocuments: unreadCount || 0,
         inactiveClients: inactiveCount,
         totalClients: totalClientsCount || 0,
         totalDocuments: totalDocsCount || 0,
+        pendingRequests: pendingRequestsCount || 0,
+        totalRequests: totalRequestsCount || 0,
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -196,6 +213,33 @@ export default function Dashboard() {
 
           {(userRole === 'admin' || userRole === 'colaborador') && (
             <>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/solicitacoes-internas')}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Headset className="h-5 w-5 text-primary" />
+                    Atendimento
+                  </CardTitle>
+                  <CardDescription>Gerenciar solicitações</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Responder e gerenciar solicitações dos clientes
+                    </p>
+                    <div className="flex items-center gap-4 pt-2">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">{analytics.pendingRequests}</div>
+                        <div className="text-xs text-muted-foreground">Pendentes</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{analytics.totalRequests}</div>
+                        <div className="text-xs text-muted-foreground">Total</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/clientes')}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -226,6 +270,23 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </>
+          )}
+
+          {userRole === 'cliente' && (
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/solicitacoes')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  Solicitações
+                </CardTitle>
+                <CardDescription>Abrir nova solicitação</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Enviar solicitações e acompanhar atendimentos
+                </p>
+              </CardContent>
+            </Card>
           )}
 
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/documentos')}>
