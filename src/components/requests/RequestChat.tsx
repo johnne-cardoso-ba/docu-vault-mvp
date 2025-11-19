@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TransferRequestDialog } from './TransferRequestDialog';
 import { RatingDialog } from './RatingDialog';
+import { DeleteRequestDialog } from './DeleteRequestDialog';
 import { useAuth } from '@/hooks/useAuth';
 
 interface RequestChatProps {
@@ -53,6 +54,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
   const [atendente, setAtendente] = useState<any>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showRatingDialog, setShowRatingDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [hasRating, setHasRating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -418,6 +420,16 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
                   <ArrowRightLeft className="mr-2 h-4 w-4" />
                   Transferir Atendimento
                 </Button>
+                {userRole === 'admin' && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Excluir Protocolo
+                  </Button>
+                )}
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4">
@@ -474,11 +486,11 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
           <div className="space-y-4 max-h-[500px] overflow-y-auto">
             {messages.map((message) => (
               <div key={message.id} className="flex gap-3">
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{message.profiles?.nome || 'Usuário'}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(message.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{message.profiles?.nome || 'Sistema'}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(message.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </span>
                   </div>
                   
@@ -592,6 +604,13 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
         onRatingComplete={() => {
           checkRating();
         }}
+      />
+
+      <DeleteRequestDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        request={request}
+        onDeleteComplete={onBack}
       />
     </div>
   );

@@ -113,6 +113,7 @@ export type Database = {
           email: string
           id: string
           nome: string
+          setor: Database["public"]["Enums"]["setor_contabilidade"] | null
           updated_at: string
         }
         Insert: {
@@ -121,6 +122,7 @@ export type Database = {
           email: string
           id: string
           nome: string
+          setor?: Database["public"]["Enums"]["setor_contabilidade"] | null
           updated_at?: string
         }
         Update: {
@@ -129,6 +131,7 @@ export type Database = {
           email?: string
           id?: string
           nome?: string
+          setor?: Database["public"]["Enums"]["setor_contabilidade"] | null
           updated_at?: string
         }
         Relationships: []

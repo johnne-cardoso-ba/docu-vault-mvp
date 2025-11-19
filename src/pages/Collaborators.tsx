@@ -29,6 +29,7 @@ type Collaborator = {
   email: string;
   nome: string;
   role: string;
+  setor: string | null;
   created_at: string;
 };
 
@@ -43,6 +44,7 @@ export default function Collaborators() {
     email: '',
     password: '',
     role: 'colaborador',
+    setor: '' as '' | 'fiscal' | 'pessoal' | 'contabil' | 'controladoria' | 'procuradoria',
   });
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function Collaborators() {
 
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, nome, email, created_at')
+        .select('id, nome, email, setor, created_at')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
@@ -74,6 +76,7 @@ export default function Collaborators() {
           nome: profile.nome,
           email: profile.email,
           role: userRole?.role || 'colaborador',
+          setor: profile.setor,
           created_at: profile.created_at,
         };
       }) || [];
@@ -104,6 +107,26 @@ export default function Collaborators() {
 
       if (error) throw new Error(error);
 
+      // Atualizar setor do colaborador se fornecido
+      if (formData.setor) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) {
+          // Buscar o profile recém-criado
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', formData.email)
+            .single();
+
+          if (profiles) {
+            await supabase
+              .from('profiles')
+              .update({ setor: formData.setor })
+              .eq('id', profiles.id);
+          }
+        }
+      }
+
       toast({ title: 'Colaborador cadastrado com sucesso!' });
       setIsDialogOpen(false);
       resetForm();
@@ -125,6 +148,7 @@ export default function Collaborators() {
       email: '',
       password: '',
       role: 'colaborador',
+      setor: '',
     });
   };
 
@@ -199,6 +223,28 @@ export default function Collaborators() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="setor">Setor</Label>
+                  <Select
+                    value={formData.setor}
+                    onValueChange={(value) => setFormData({ ...formData, setor: value as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Geral (todos os setores)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Geral (todos os setores)</SelectItem>
+                      <SelectItem value="fiscal">Fiscal</SelectItem>
+                      <SelectItem value="pessoal">Pessoal</SelectItem>
+                      <SelectItem value="contabil">Contábil</SelectItem>
+                      <SelectItem value="controladoria">Controladoria</SelectItem>
+                      <SelectItem value="procuradoria">Procuradoria</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Se vazio, o colaborador receberá solicitações de todos os setores
+                  </p>
+                </div>
                 <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancelar
@@ -231,13 +277,14 @@ export default function Collaborators() {
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Setor</TableHead>
                   <TableHead>Data de Cadastro</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {collaborators.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       Nenhum colaborador cadastrado
                     </TableCell>
                   </TableRow>
@@ -252,8 +299,19 @@ export default function Collaborators() {
                             ? 'bg-primary/10 text-primary' 
                             : 'bg-secondary/10 text-secondary'
                         }`}>
-                          {collab.role}
+                          {collab.role === 'admin' ? 'Administrador' : 'Colaborador'}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {collab.setor ? (
+                          collab.setor === 'fiscal' ? 'Fiscal' :
+                          collab.setor === 'pessoal' ? 'Pessoal' :
+                          collab.setor === 'contabil' ? 'Contábil' :
+                          collab.setor === 'controladoria' ? 'Controladoria' :
+                          collab.setor === 'procuradoria' ? 'Procuradoria' : ''
+                        ) : (
+                          <span className="text-muted-foreground">Geral</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {new Date(collab.created_at).toLocaleDateString('pt-BR')}

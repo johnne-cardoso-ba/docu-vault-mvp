@@ -46,12 +46,40 @@ export function InternalRequestsList() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // Buscar solicitações onde o colaborador é o atendente OU não há atendente
-      const { data, error } = await supabase
+      // Buscar perfil do colaborador para verificar seu setor
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('setor')
+        .eq('id', user.id)
+        .single();
+
+      // Buscar role do usuário
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      let query = supabase
         .from('requests')
-        .select('*, clients(nome_razao_social, email)')
-        .or(`atendente_id.eq.${user.id},atendente_id.is.null`)
-        .order('created_at', { ascending: false });
+        .select('*, clients(nome_razao_social, email)');
+
+      // Se for admin, vê todas as solicitações
+      if (roleData?.role === 'admin') {
+        query = query.or(`atendente_id.eq.${user.id},atendente_id.is.null`);
+      } else if (roleData?.role === 'colaborador') {
+        // Se tem setor específico, filtra por esse setor
+        if (profile?.setor) {
+          query = query
+            .eq('setor', profile.setor)
+            .or(`atendente_id.eq.${user.id},atendente_id.is.null`);
+        } else {
+          // Se não tem setor (geral), vê todas
+          query = query.or(`atendente_id.eq.${user.id},atendente_id.is.null`);
+        }
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setRequests(data || []);
