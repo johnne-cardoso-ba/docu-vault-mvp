@@ -57,14 +57,18 @@ ufw enable
 ### 3.1. Clonar Repositório
 
 ```bash
-# Ir para o diretório da aplicação
+# IMPORTANTE: Clone dentro do diretório /opt/app
 cd /opt/app
 
-# Clonar repositório (substitua pela URL do seu repo)
+# Clonar repositório (substitua pela URL do seu repo GitHub)
 git clone https://github.com/seu-usuario/seu-repositorio.git .
 
 # Dar permissões corretas
 chown -R appuser:appuser /opt/app
+
+# Verificar se os arquivos foram clonados
+ls -la /opt/app
+# Deve mostrar: package.json, src/, public/, etc.
 ```
 
 ### 3.2. Configurar Variáveis de Ambiente
