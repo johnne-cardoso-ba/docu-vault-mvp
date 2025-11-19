@@ -57,29 +57,42 @@ export default function Collaborators() {
 
   const fetchCollaborators = async () => {
     try {
-      const { data, error } = await supabase
+      // Buscar roles de colaboradores e admins
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('role', ['admin', 'colaborador']);
+
+      if (rolesError) throw rolesError;
+
+      if (!rolesData || rolesData.length === 0) {
+        setCollaborators([]);
+        setLoading(false);
+        return;
+      }
+
+      const userIds = rolesData.map(r => r.user_id);
+
+      // Buscar profiles dos usuários
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          nome,
-          email,
-          setor,
-          created_at,
-          user_roles!inner(role)
-        `)
-        .in('user_roles.role', ['admin', 'colaborador'])
+        .select('id, nome, email, setor, created_at')
+        .in('id', userIds)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
 
-      const collaboratorsData = data?.map((profile: any) => ({
-        id: profile.id,
-        nome: profile.nome,
-        email: profile.email,
-        role: profile.user_roles[0]?.role || 'colaborador',
-        setor: profile.setor,
-        created_at: profile.created_at,
-      })) || [];
+      const collaboratorsData = profilesData?.map((profile: any) => {
+        const userRole = rolesData.find(r => r.user_id === profile.id);
+        return {
+          id: profile.id,
+          nome: profile.nome,
+          email: profile.email,
+          role: userRole?.role || 'colaborador',
+          setor: profile.setor,
+          created_at: profile.created_at,
+        };
+      }) || [];
 
       setCollaborators(collaboratorsData);
     } catch (error: any) {
