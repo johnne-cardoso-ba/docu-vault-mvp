@@ -668,6 +668,7 @@ export type Database = {
     }
     Functions: {
       generate_protocol: { Args: never; Returns: string }
+      get_next_rps: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

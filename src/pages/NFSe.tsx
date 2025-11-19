@@ -109,12 +109,11 @@ export default function NFSe() {
 
       if (configError) throw configError;
 
-      // Gerar próximo número RPS baseado no count
-      const { count } = await supabase
-        .from("nfse_emitidas")
-        .select("*", { count: "exact", head: true });
-
-      const proximoRps = (count || 0) + 1;
+      // Gerar próximo número RPS usando função SQL
+      const { data: proximoRpsData, error: rpsError } = await supabase.rpc("get_next_rps");
+      
+      if (rpsError) throw rpsError;
+      const proximoRps = proximoRpsData as number;
 
       const valorServicos = parseFloat(formData.valor_servicos);
       const desconto = parseFloat(formData.desconto_incondicionado);
