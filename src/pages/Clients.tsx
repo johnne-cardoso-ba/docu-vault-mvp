@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Edit, Loader2, KeyRound, X, Printer, FileText } from 'lucide-react';
+import { Plus, Edit, Loader2, KeyRound, X, Printer, FileText, Search } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { ResetPasswordDialog } from '@/components/ResetPasswordDialog';
 import { ClientSheet } from '@/components/clients/ClientSheet';
@@ -349,6 +349,63 @@ export default function Clients() {
     contentRef: printRef,
   });
 
+  const fetchCNPJData = async (cnpj: string) => {
+    const cleanCNPJ = cnpj.replace(/[^\d]/g, '');
+    
+    if (cleanCNPJ.length !== 14) return;
+
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
+      
+      if (!response.ok) {
+        throw new Error('CNPJ não encontrado');
+      }
+
+      const data = await response.json();
+
+      // Preencher campos automaticamente
+      setFormData(prev => ({
+        ...prev,
+        nome_razao_social: data.razao_social || prev.nome_razao_social,
+        email: data.email || prev.email,
+        telefone: data.ddd_telefone_1 || prev.telefone,
+        cep: data.cep || prev.cep,
+        logradouro: data.logradouro || prev.logradouro,
+        numero: data.numero || prev.numero,
+        complemento: data.complemento || prev.complemento,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.municipio || prev.cidade,
+        estado: data.uf || prev.estado,
+        atividade_principal: data.cnae_fiscal_descricao || prev.atividade_principal,
+        situacao: data.situacao_cadastral === 'ATIVA' ? 'Ativo' : prev.situacao,
+        inscricao_municipal: data.numero_inscricao_municipal || prev.inscricao_municipal,
+        codigo_simples: data.opcao_pelo_simples ? 'Sim' : prev.codigo_simples,
+      }));
+
+      // Preencher sócios se houver
+      if (data.qsa && Array.isArray(data.qsa) && data.qsa.length > 0) {
+        const sociosData = data.qsa.slice(0, 5).map((s: any) => ({
+          nome: s.nome_socio || s.nome_representante_legal || '',
+          cpf: '',
+          capital: '',
+          porcentagem: s.percentual_capital ? s.percentual_capital.toString() : '',
+        }));
+        setSocios(sociosData);
+      }
+
+      toast({
+        title: 'Dados carregados com sucesso!',
+        description: 'Informações do CNPJ preenchidas automaticamente',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao buscar CNPJ',
+        description: error.message || 'Não foi possível buscar os dados do CNPJ',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <AppLayout>
       <div className="p-6">
@@ -402,12 +459,35 @@ export default function Clients() {
                       </div>
                       <div>
                         <Label htmlFor="cnpj">CNPJ</Label>
-                        <Input
-                          id="cnpj"
-                          value={formData.cnpj}
-                          onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                          placeholder="00.000.000/0000-00"
-                        />
+                        <div className="flex gap-2">
+                          <Input
+                            id="cnpj"
+                            value={formData.cnpj}
+                            onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                            onBlur={(e) => fetchCNPJData(e.target.value)}
+                            placeholder="00.000.000/0000-00"
+                          />
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => fetchCNPJData(formData.cnpj)}
+                                >
+                                  <Search className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Buscar dados na Receita Federal</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Digite o CNPJ e clique em buscar para preencher automaticamente
+                        </p>
                       </div>
                       <div>
                         <Label htmlFor="email">Email *</Label>
