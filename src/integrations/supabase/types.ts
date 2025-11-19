@@ -214,6 +214,227 @@ export type Database = {
           },
         ]
       }
+      nfse_config: {
+        Row: {
+          aliquota_iss: number
+          ambiente: string
+          certificado_a1: string
+          cnae_fiscal: string
+          codigo_tributacao_municipio: string
+          created_at: string
+          descricao_servico: string
+          id: string
+          inscricao_municipal: string
+          item_lista_servico: string
+          senha_certificado: string
+          updated_at: string
+        }
+        Insert: {
+          aliquota_iss?: number
+          ambiente?: string
+          certificado_a1: string
+          cnae_fiscal: string
+          codigo_tributacao_municipio: string
+          created_at?: string
+          descricao_servico: string
+          id?: string
+          inscricao_municipal: string
+          item_lista_servico: string
+          senha_certificado: string
+          updated_at?: string
+        }
+        Update: {
+          aliquota_iss?: number
+          ambiente?: string
+          certificado_a1?: string
+          cnae_fiscal?: string
+          codigo_tributacao_municipio?: string
+          created_at?: string
+          descricao_servico?: string
+          id?: string
+          inscricao_municipal?: string
+          item_lista_servico?: string
+          senha_certificado?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      nfse_emitidas: {
+        Row: {
+          aliquota: number
+          base_calculo: number
+          cancelada_em: string | null
+          cancelada_por: string | null
+          client_id: string | null
+          codigo_cnae: string | null
+          codigo_municipio: string | null
+          codigo_tributacao_municipio: string
+          codigo_verificacao: string | null
+          created_at: string
+          data_emissao: string
+          desconto_condicionado: number | null
+          desconto_incondicionado: number | null
+          discriminacao: string
+          emitida_por: string | null
+          exigibilidade_iss: number | null
+          id: string
+          iss_retido: boolean | null
+          item_lista_servico: string
+          link_nfse: string | null
+          mensagem_erro: string | null
+          motivo_cancelamento: string | null
+          numero_nota: number | null
+          numero_processo: string | null
+          numero_rps: number
+          outras_retencoes: number | null
+          serie_rps: string
+          status: string
+          tipo_rps: number
+          tomador_bairro: string | null
+          tomador_cep: string | null
+          tomador_cidade: string | null
+          tomador_cnpj_cpf: string
+          tomador_complemento: string | null
+          tomador_email: string | null
+          tomador_endereco: string | null
+          tomador_numero: string | null
+          tomador_razao_social: string
+          tomador_telefone: string | null
+          tomador_uf: string | null
+          updated_at: string
+          valor_cofins: number | null
+          valor_csll: number | null
+          valor_deducoes: number | null
+          valor_inss: number | null
+          valor_ir: number | null
+          valor_iss: number | null
+          valor_iss_retido: number | null
+          valor_liquido_nfse: number
+          valor_pis: number | null
+          valor_servicos: number
+          xml_envio: string | null
+          xml_retorno: string | null
+        }
+        Insert: {
+          aliquota: number
+          base_calculo: number
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          client_id?: string | null
+          codigo_cnae?: string | null
+          codigo_municipio?: string | null
+          codigo_tributacao_municipio: string
+          codigo_verificacao?: string | null
+          created_at?: string
+          data_emissao?: string
+          desconto_condicionado?: number | null
+          desconto_incondicionado?: number | null
+          discriminacao: string
+          emitida_por?: string | null
+          exigibilidade_iss?: number | null
+          id?: string
+          iss_retido?: boolean | null
+          item_lista_servico: string
+          link_nfse?: string | null
+          mensagem_erro?: string | null
+          motivo_cancelamento?: string | null
+          numero_nota?: number | null
+          numero_processo?: string | null
+          numero_rps: number
+          outras_retencoes?: number | null
+          serie_rps?: string
+          status?: string
+          tipo_rps?: number
+          tomador_bairro?: string | null
+          tomador_cep?: string | null
+          tomador_cidade?: string | null
+          tomador_cnpj_cpf: string
+          tomador_complemento?: string | null
+          tomador_email?: string | null
+          tomador_endereco?: string | null
+          tomador_numero?: string | null
+          tomador_razao_social: string
+          tomador_telefone?: string | null
+          tomador_uf?: string | null
+          updated_at?: string
+          valor_cofins?: number | null
+          valor_csll?: number | null
+          valor_deducoes?: number | null
+          valor_inss?: number | null
+          valor_ir?: number | null
+          valor_iss?: number | null
+          valor_iss_retido?: number | null
+          valor_liquido_nfse: number
+          valor_pis?: number | null
+          valor_servicos: number
+          xml_envio?: string | null
+          xml_retorno?: string | null
+        }
+        Update: {
+          aliquota?: number
+          base_calculo?: number
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          client_id?: string | null
+          codigo_cnae?: string | null
+          codigo_municipio?: string | null
+          codigo_tributacao_municipio?: string
+          codigo_verificacao?: string | null
+          created_at?: string
+          data_emissao?: string
+          desconto_condicionado?: number | null
+          desconto_incondicionado?: number | null
+          discriminacao?: string
+          emitida_por?: string | null
+          exigibilidade_iss?: number | null
+          id?: string
+          iss_retido?: boolean | null
+          item_lista_servico?: string
+          link_nfse?: string | null
+          mensagem_erro?: string | null
+          motivo_cancelamento?: string | null
+          numero_nota?: number | null
+          numero_processo?: string | null
+          numero_rps?: number
+          outras_retencoes?: number | null
+          serie_rps?: string
+          status?: string
+          tipo_rps?: number
+          tomador_bairro?: string | null
+          tomador_cep?: string | null
+          tomador_cidade?: string | null
+          tomador_cnpj_cpf?: string
+          tomador_complemento?: string | null
+          tomador_email?: string | null
+          tomador_endereco?: string | null
+          tomador_numero?: string | null
+          tomador_razao_social?: string
+          tomador_telefone?: string | null
+          tomador_uf?: string | null
+          updated_at?: string
+          valor_cofins?: number | null
+          valor_csll?: number | null
+          valor_deducoes?: number | null
+          valor_inss?: number | null
+          valor_ir?: number | null
+          valor_iss?: number | null
+          valor_iss_retido?: number | null
+          valor_liquido_nfse?: number
+          valor_pis?: number | null
+          valor_servicos?: number
+          xml_envio?: string | null
+          xml_retorno?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfse_emitidas_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
