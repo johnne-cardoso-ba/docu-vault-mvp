@@ -205,6 +205,9 @@ export default function Clients() {
 
       const dataToSave = {
         ...formData,
+        // Converter strings vazias de data para null
+        data_nascimento: formData.data_nascimento || null,
+        juceb_data_registro: formData.juceb_data_registro || null,
         campos_customizados: camposCustomizados,
         socios: socios,
       };
