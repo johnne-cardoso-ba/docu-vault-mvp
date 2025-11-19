@@ -8,6 +8,10 @@ import { AppLayout } from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 
 type AnalyticsData = {
+  totalDocuments: number;
+  unreadDocuments: number;
+  totalClients: number;
+  inactiveClients: number;
   pendingRequests: number;
   totalRequests: number;
   respondedRequests: number;
@@ -22,6 +26,10 @@ export default function Dashboard() {
   const { userRole } = useAuth();
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<AnalyticsData>({
+    totalDocuments: 0,
+    unreadDocuments: 0,
+    totalClients: 0,
+    inactiveClients: 0,
     pendingRequests: 0,
     totalRequests: 0,
     respondedRequests: 0,
@@ -43,6 +51,46 @@ export default function Dashboard() {
 
   const fetchAnalytics = async () => {
     try {
+      // Fetch total documents
+      const { count: totalDocsCount } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch unread documents
+      const { count: unreadDocsCount } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true })
+        .is('data_leitura', null);
+
+      // Fetch total clients
+      const { count: totalClientsCount } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch inactive clients (haven't accessed in 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: allClients } = await supabase
+        .from('clients')
+        .select('id, email');
+
+      let inactiveCount = 0;
+      if (allClients) {
+        for (const client of allClients) {
+          const { data: recentDocs } = await supabase
+            .from('documents')
+            .select('data_leitura')
+            .eq('client_id', client.id)
+            .gte('data_leitura', thirtyDaysAgo.toISOString())
+            .limit(1);
+
+          if (!recentDocs || recentDocs.length === 0) {
+            inactiveCount++;
+          }
+        }
+      }
+
       // Fetch total requests
       const { count: totalRequestsCount } = await supabase
         .from('requests')
@@ -114,6 +162,10 @@ export default function Dashboard() {
         .gte('created_at', today.toISOString());
 
       setAnalytics({
+        totalDocuments: totalDocsCount || 0,
+        unreadDocuments: unreadDocsCount || 0,
+        totalClients: totalClientsCount || 0,
+        inactiveClients: inactiveCount,
         pendingRequests: pendingCount,
         totalRequests: totalRequestsCount || 0,
         respondedRequests: respondedCount,
@@ -134,9 +186,89 @@ export default function Dashboard() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Dashboard de Atendimento</h2>
-          <p className="text-muted-foreground mt-2">Métricas e indicadores do sistema de solicitações</p>
+          <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
+          <p className="text-muted-foreground mt-2">Visão geral do sistema</p>
         </div>
+
+        {/* Analytics Cards */}
+        {(userRole === 'admin' || userRole === 'colaborador') && (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {loadingAnalytics ? (
+                <div className="col-span-full flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Total de Documentos
+                      </CardTitle>
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analytics.totalDocuments}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Documentos no sistema
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Documentos Não Visualizados
+                      </CardTitle>
+                      <Eye className="h-4 w-4 text-yellow-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-yellow-600">{analytics.unreadDocuments}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Aguardando visualização
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Total de Clientes
+                      </CardTitle>
+                      <Headset className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analytics.totalClients}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Clientes cadastrados
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Clientes Inativos
+                      </CardTitle>
+                      <AlertCircle className="h-4 w-4 text-orange-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-orange-600">{analytics.inactiveClients}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Sem acesso há +30 dias
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+
+            {/* Atendimento Metrics Section */}
+            <div>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Métricas de Atendimento</h3>
+            </div>
+          </>
+        )}
 
         {/* Atendimento Metrics */}
         {(userRole === 'admin' || userRole === 'colaborador') && (
