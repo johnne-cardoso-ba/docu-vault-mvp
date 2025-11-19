@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Upload, LogOut, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Upload, LogOut, UserCog, MessageSquare, Headset } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +29,7 @@ export function AppSidebar() {
     { title: 'Colaboradores', url: '/colaboradores', icon: UserCog },
     { title: 'Enviar Documento', url: '/enviar-documento', icon: Upload },
     { title: 'Documentos', url: '/documentos', icon: FileText },
+    { title: 'Atendimento', url: '/solicitacoes-internas', icon: Headset },
   ];
 
   const colaboradorItems = [
@@ -36,10 +37,12 @@ export function AppSidebar() {
     { title: 'Clientes', url: '/clientes', icon: Users },
     { title: 'Enviar Documento', url: '/enviar-documento', icon: Upload },
     { title: 'Documentos', url: '/documentos', icon: FileText },
+    { title: 'Atendimento', url: '/solicitacoes-internas', icon: Headset },
   ];
 
   const clienteItems = [
     { title: 'Documentos', url: '/documentos', icon: FileText },
+    { title: 'Solicitações', url: '/solicitacoes', icon: MessageSquare },
   ];
 
   const items = 

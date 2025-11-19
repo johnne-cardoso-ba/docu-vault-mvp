@@ -9,6 +9,8 @@ import Clients from "./pages/Clients";
 import Collaborators from "./pages/Collaborators";
 import UploadDocument from "./pages/UploadDocument";
 import Documents from "./pages/Documents";
+import Requests from "./pages/Requests";
+import InternalRequests from "./pages/InternalRequests";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -59,6 +61,22 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Documents />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/solicitacoes" 
+            element={
+              <ProtectedRoute>
+                <Requests />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/solicitacoes-internas" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'colaborador']}>
+                <InternalRequests />
               </ProtectedRoute>
             } 
           />
