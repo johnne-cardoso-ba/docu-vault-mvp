@@ -15,6 +15,18 @@ export function useAuth() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Verificar se deve fazer logout ao fechar o navegador
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    
+    if (!rememberMe && session) {
+      // Se não marcou "lembrar-me", configurar para logout ao fechar navegador
+      window.addEventListener('beforeunload', () => {
+        if (!localStorage.getItem('rememberMe')) {
+          supabase.auth.signOut();
+        }
+      });
+    }
+
     // Set up auth listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -92,8 +104,15 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
+      // Salvar preferência de "lembrar-me"
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        localStorage.removeItem('rememberMe');
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -157,6 +176,7 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    localStorage.removeItem('rememberMe');
     await supabase.auth.signOut();
     setUserRole(null);
     navigate('/');
