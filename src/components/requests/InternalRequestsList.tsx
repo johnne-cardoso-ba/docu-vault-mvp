@@ -30,7 +30,7 @@ const statusColors: Record<string, string> = {
   concluido: 'bg-green-500',
 };
 
-export function InternalRequestsList() {
+export function InternalRequestsList({ openRequestId }: { openRequestId?: string }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -40,6 +40,17 @@ export function InternalRequestsList() {
   useEffect(() => {
     loadRequests();
   }, []);
+
+  // Abrir automaticamente o request quando vier da notificação
+  useEffect(() => {
+    if (openRequestId && requests.length > 0) {
+      const request = requests.find(r => r.id === openRequestId);
+      if (request) {
+        console.log('📖 Abrindo solicitação da notificação:', request);
+        setSelectedRequest(request);
+      }
+    }
+  }, [openRequestId, requests]);
 
   const loadRequests = async () => {
     try {

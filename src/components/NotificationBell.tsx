@@ -87,15 +87,38 @@ export function NotificationBell() {
 
   usePresence(handleUserOnline);
   
+  
   const [audio] = useState(() => {
-    const audio = new Audio();
-    // Som de notificação (usando um tom simples)
-    audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZjTgIGGi77eeeTRAMUKfi8LZjHAY4ktfxy3ksBS' +
-      'F3x/DdkEAKFF606+uoVRQKRp/g8r5sIQUrgs7y2Y04CBhquvr45poNChVowOmyZBwGOJLX8ct5LAUhd8fw3ZBAChRetevrqFUUCkee4PK+bCEFK4Lb8tmNOAgYarvt555NEAxQp+LwtmMcBjiS1/HLeSsGIXfH8N+QQAoUXrXr66hVFApHnuDyv2whBSyC2/LZjTgIGGu77eeeTRAMUKfi8LZjHAY4ktfxy3ksBS' +
-      'J3x/DdkEAKFF607+uoVRQKR5/g8r5sIQUsgs7y2Y04CBtsvetmMcBjiS1/HMeS' +
-      'wFIXfH8N2QQAoUXbXr66hVFApHn+DyvmwhBSyC2/LZjTgIG2y+72YxwGOJLX8ct5LAUid8fw3ZBAChRevev7qFUU';
-    audio.volume = 0.5;
-    return audio;
+    // Criar um tom de notificação usando Web Audio API para mais confiabilidade
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    return {
+      play: () => {
+        try {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          // Configurar o tom
+          oscillator.frequency.value = 800; // Frequência em Hz
+          gainNode.gain.value = 0.3; // Volume
+          
+          // Tocar o som
+          oscillator.start(audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioContext.currentTime + 0.3
+          );
+          oscillator.stop(audioContext.currentTime + 0.3);
+          
+          console.log('🔊 Som de notificação tocado');
+        } catch (err) {
+          console.error('Erro ao tocar som:', err);
+        }
+      }
+    };
   });
 
   useEffect(() => {
@@ -113,11 +136,84 @@ export function NotificationBell() {
           schema: 'public',
           table: 'request_messages',
         },
-        async (payload) => {
+        async (payload: any) => {
+          console.log('🔔 Nova mensagem detectada:', payload);
+          
           // Verificar se a mensagem não é do próprio usuário
-          if (payload.new.user_id !== user.id) {
-            await checkNewNotification();
+          if (payload.new.user_id === user.id) {
+            console.log('⏭️ Ignorando mensagem própria');
+            return;
+          }
+
+          // Buscar informações da solicitação e do usuário que enviou
+          const { data: request } = await supabase
+            .from('requests')
+            .select('id, protocol, assunto, client_id')
+            .eq('id', payload.new.request_id)
+            .single();
+
+          if (!request) return;
+
+          // Verificar se o usuário deve receber essa notificação
+          let shouldNotify = false;
+          
+          if (userRole === 'cliente') {
+            // Cliente só vê notificações das próprias solicitações
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('email')
+              .eq('id', user.id)
+              .single();
+
+            const { data: client } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('email', profile?.email || '')
+              .single();
+
+            shouldNotify = client?.id === request.client_id;
+          } else {
+            // Admin e colaboradores veem todas as notificações
+            shouldNotify = true;
+          }
+
+          if (shouldNotify) {
+            // Buscar perfil de quem enviou a mensagem
+            const { data: senderProfile } = await supabase
+              .from('profiles')
+              .select('nome, avatar_url')
+              .eq('id', payload.new.user_id)
+              .single();
+
+            const newNotification: Notification = {
+              id: `msg-${payload.new.id}`,
+              request_id: request.id,
+              protocol: request.protocol,
+              assunto: request.assunto,
+              tipo: 'nova_mensagem',
+              created_at: payload.new.created_at,
+              lida: false,
+              user_nome: senderProfile?.nome,
+              user_avatar: senderProfile?.avatar_url,
+            };
+
+            console.log('✅ Adicionando notificação:', newNotification);
+            
+            setNotifications(prev => {
+              // Evitar duplicatas
+              if (prev.some(n => n.id === newNotification.id)) {
+                return prev;
+              }
+              return [newNotification, ...prev];
+            });
+            
+            setUnreadCount(prev => prev + 1);
             playNotificationSound();
+            
+            toast({
+              title: '💬 Nova mensagem',
+              description: `${senderProfile?.nome || 'Alguém'} enviou uma mensagem em #${request.protocol}`,
+            });
           }
         }
       )
@@ -128,20 +224,84 @@ export function NotificationBell() {
           schema: 'public',
           table: 'requests',
         },
-        async (payload) => {
-          await checkNewNotification();
-          playNotificationSound();
+        async (payload: any) => {
+          console.log('🔄 Status de solicitação atualizado:', payload);
+          
+          // Verificar se houve mudança de status
+          if (payload.old.status !== payload.new.status) {
+            const { data: request } = await supabase
+              .from('requests')
+              .select('id, protocol, assunto, client_id')
+              .eq('id', payload.new.id)
+              .single();
+
+            if (!request) return;
+
+            // Verificar se o usuário deve receber essa notificação
+            let shouldNotify = false;
+            
+            if (userRole === 'cliente') {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('id', user.id)
+                .single();
+
+              const { data: client } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('email', profile?.email || '')
+                .single();
+
+              shouldNotify = client?.id === request.client_id;
+            } else {
+              shouldNotify = true;
+            }
+
+            if (shouldNotify) {
+              const statusLabels: Record<string, string> = {
+                aberto: 'Aberto',
+                em_atendimento: 'Em Atendimento',
+                concluido: 'Concluído',
+              };
+
+              const newNotification: Notification = {
+                id: `status-${request.id}-${Date.now()}`,
+                request_id: request.id,
+                protocol: request.protocol,
+                assunto: request.assunto,
+                tipo: 'status_alterado',
+                created_at: new Date().toISOString(),
+                lida: false,
+              };
+
+              setNotifications(prev => [newNotification, ...prev]);
+              setUnreadCount(prev => prev + 1);
+              playNotificationSound();
+              
+              toast({
+                title: '🔄 Status alterado',
+                description: `#${request.protocol} está agora ${statusLabels[payload.new.status]}`,
+              });
+            }
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔌 Status do canal de notificações:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, userRole]);
 
   const playNotificationSound = () => {
-    audio.play().catch(err => console.log('Erro ao tocar som:', err));
+    try {
+      audio.play();
+    } catch (err) {
+      console.log('Erro ao tocar som:', err);
+    }
   };
 
   const loadNotifications = async () => {
@@ -208,18 +368,31 @@ export function NotificationBell() {
     await loadNotifications();
   };
 
-  const handleNotificationClick = (requestId: string, userId?: string) => {
-    if (userId) {
+  const handleNotificationClick = (notification: Notification) => {
+    console.log('🔍 Clicando na notificação:', notification);
+    
+    if (notification.user_id) {
       // Se é notificação de presença, ir para atendimento
       navigate('/atendimento');
-    } else if (requestId) {
-      // Se é notificação de request, ir para o request específico
+    } else if (notification.request_id) {
+      // Se é notificação de request, ir para a página de solicitações
+      // e passar o request_id via state para abrir automaticamente
       if (userRole === 'cliente') {
-        navigate(`/solicitacoes`);
+        navigate('/solicitacoes', { 
+          state: { openRequestId: notification.request_id } 
+        });
       } else {
-        navigate('/solicitacoes-internas');
+        navigate('/solicitacoes-internas', { 
+          state: { openRequestId: notification.request_id } 
+        });
       }
     }
+    
+    // Marcar notificação como lida
+    setNotifications(prev => 
+      prev.map(n => n.id === notification.id ? { ...n, lida: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   const markAsRead = () => {
@@ -267,7 +440,7 @@ export function NotificationBell() {
                     className={`p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors ${
                       !notif.lida ? 'bg-primary/5 border-primary/20' : 'border-border'
                     }`}
-                    onClick={() => handleNotificationClick(notif.request_id, notif.user_id)}
+                    onClick={() => handleNotificationClick(notif)}
                   >
                     <div className="flex items-start gap-3">
                       {notif.tipo === 'usuario_online' && (
