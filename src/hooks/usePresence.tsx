@@ -14,6 +14,7 @@ export function usePresence(onUserOnline?: (user: OnlineNotification) => void) {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
   const [previousOnlineUsers, setPreviousOnlineUsers] = useState<Set<string>>(new Set());
+  const [hasNotifiedInitialUsers, setHasNotifiedInitialUsers] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -41,8 +42,8 @@ export function usePresence(onUserOnline?: (user: OnlineNotification) => void) {
               if (presence.user_id) {
                 userIds.add(presence.user_id);
                 
-                // Detectar novos usuários online
-                if (!previousOnlineUsers.has(presence.user_id) && presence.user_id !== user?.id) {
+                // Detectar novos usuários online (apenas após a inicialização)
+                if (hasNotifiedInitialUsers && !previousOnlineUsers.has(presence.user_id) && presence.user_id !== user?.id) {
                   newUsers.push({
                     user_id: presence.user_id,
                     nome: presence.nome,
@@ -54,9 +55,14 @@ export function usePresence(onUserOnline?: (user: OnlineNotification) => void) {
           }
         });
         
-        // Notificar sobre novos usuários online
-        if (newUsers.length > 0 && onUserOnline) {
+        // Notificar sobre novos usuários online (apenas após a primeira sincronização)
+        if (newUsers.length > 0 && onUserOnline && hasNotifiedInitialUsers) {
           newUsers.forEach(newUser => onUserOnline(newUser));
+        }
+        
+        // Após a primeira sync, marcar como inicializado
+        if (!hasNotifiedInitialUsers) {
+          setHasNotifiedInitialUsers(true);
         }
         
         setPreviousOnlineUsers(userIds);
@@ -92,7 +98,7 @@ export function usePresence(onUserOnline?: (user: OnlineNotification) => void) {
     return () => {
       presenceChannel.unsubscribe();
     };
-  }, [user]);
+  }, [user, hasNotifiedInitialUsers, previousOnlineUsers, onUserOnline]);
 
   return { onlineUsers, channel };
 }
