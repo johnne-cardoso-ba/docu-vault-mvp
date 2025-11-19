@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/hooks/useAuth';
+import { usePresence } from '@/hooks/usePresence';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 import { NotificationBell } from '@/components/NotificationBell';
 
@@ -11,6 +12,9 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { user, mustChangePassword, setMustChangePassword } = useAuth();
+  
+  // Initialize presence tracking for all logged-in users
+  usePresence();
 
   return (
     <SidebarProvider>
