@@ -73,14 +73,31 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
 
   const loadMessages = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: messagesData, error } = await supabase
         .from('request_messages')
-        .select('*, profiles(nome)')
+        .select('*')
         .eq('request_id', request.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+
+      // Buscar perfis dos usuários das mensagens
+      if (messagesData && messagesData.length > 0) {
+        const userIds = [...new Set(messagesData.map(m => m.user_id))];
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, nome')
+          .in('id', userIds);
+
+        const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+        const messagesWithProfiles = messagesData.map(msg => ({
+          ...msg,
+          profiles: profilesMap.get(msg.user_id) || null
+        }));
+        setMessages(messagesWithProfiles);
+      } else {
+        setMessages([]);
+      }
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
     } finally {
@@ -317,6 +334,19 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
               </div>
             )}
           </div>
+
+          {!isInternal && currentStatus === 'concluido' && !hasRating && (
+            <div className="pt-4 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRatingDialog(true)}
+              >
+                <Star className="mr-2 h-4 w-4" />
+                Avaliar Atendimento
+              </Button>
+            </div>
+          )}
 
           {isInternal && (
             <div className="space-y-4 pt-4 border-t">
