@@ -43,9 +43,26 @@ export function RequestsList() {
 
   const loadRequests = async () => {
     try {
+      // Buscar email do usuário logado via perfil
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profile?.email) {
+        setRequests([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('requests')
-        .select('*, clients(nome_razao_social), profiles!requests_atendente_id_fkey(nome)')
+        .select('*, clients!inner(nome_razao_social, email), profiles!requests_atendente_id_fkey(nome)')
+        .eq('clients.email', profile.email)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
