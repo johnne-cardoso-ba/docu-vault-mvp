@@ -20,7 +20,7 @@ import logo from '@/assets/logo-branca.png';
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { userRole, signOut } = useAuth();
+  const { userRole, hasNFSeAccess, signOut } = useAuth();
   const currentPath = location.pathname;
 
   const adminItems = [
@@ -47,6 +47,7 @@ export function AppSidebar() {
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Documentos', url: '/documentos', icon: FileText },
     { title: 'Solicitações', url: '/solicitacoes', icon: MessageSquare },
+    ...(hasNFSeAccess ? [{ title: 'NFS-e', url: '/nfse/cliente', icon: Receipt }] : []),
   ];
 
   const items = 
