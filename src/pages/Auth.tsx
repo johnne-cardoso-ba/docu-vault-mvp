@@ -76,7 +76,7 @@ export default function Auth() {
               <img 
                 src={logoEscritura} 
                 alt="Escritura AI" 
-                className="h-20 w-auto"
+                className="h-16 w-auto object-contain"
               />
             </div>
             <CardDescription className="text-center text-base">
