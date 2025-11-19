@@ -340,9 +340,15 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
+      // Preparar update: se está marcando como concluído, registrar atendente
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'concluido' && !request.atendente_id) {
+        updateData.atendente_id = user.id;
+      }
+
       const { error } = await supabase
         .from('requests')
-        .update({ status: newStatus as any })
+        .update(updateData)
         .eq('id', request.id);
 
       if (error) throw error;
@@ -357,6 +363,12 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
       });
 
       setCurrentStatus(newStatus);
+      
+      // Se marcou como concluído, atualizar o request local com o atendente
+      if (newStatus === 'concluido' && !request.atendente_id) {
+        request.atendente_id = user.id;
+        loadAtendente();
+      }
       
       toast({
         title: 'Status atualizado',
@@ -475,7 +487,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
             )}
           </div>
 
-          {!isInternal && currentStatus === 'concluido' && !hasRating && request.atendente_id && (
+          {!isInternal && currentStatus === 'concluido' && !hasRating && (
             <div className="pt-4 border-t">
               <Button
                 variant="outline"
@@ -544,7 +556,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
             </div>
           )}
 
-          {!isInternal && currentStatus === 'concluido' && !hasRating && request.atendente_id && (
+          {!isInternal && currentStatus === 'concluido' && !hasRating && (
             <div className="pt-4 border-t">
               <Button
                 onClick={() => setShowRatingDialog(true)}
