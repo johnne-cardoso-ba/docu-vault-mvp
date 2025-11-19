@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { EditCollaboratorDialog } from '@/components/collaborators/EditCollaboratorDialog';
+import { DeleteCollaboratorDialog } from '@/components/collaborators/DeleteCollaboratorDialog';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 
 type Collaborator = {
@@ -39,6 +41,8 @@ export default function Collaborators() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingCollaborator, setEditingCollaborator] = useState<Collaborator | null>(null);
+  const [deletingCollaborator, setDeletingCollaborator] = useState<Collaborator | null>(null);
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -53,33 +57,29 @@ export default function Collaborators() {
 
   const fetchCollaborators = async () => {
     try {
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('role', ['admin', 'colaborador']);
-
-      if (rolesError) throw rolesError;
-
-      const userIds = rolesData?.map(r => r.user_id) || [];
-
-      const { data: profilesData, error: profilesError } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .select('id, nome, email, setor, created_at')
-        .in('id', userIds);
+        .select(`
+          id,
+          nome,
+          email,
+          setor,
+          created_at,
+          user_roles!inner(role)
+        `)
+        .in('user_roles.role', ['admin', 'colaborador'])
+        .order('created_at', { ascending: false });
 
-      if (profilesError) throw profilesError;
+      if (error) throw error;
 
-      const collaboratorsData = profilesData?.map((profile: any) => {
-        const userRole = rolesData?.find(r => r.user_id === profile.id);
-        return {
-          id: profile.id,
-          nome: profile.nome,
-          email: profile.email,
-          role: userRole?.role || 'colaborador',
-          setor: profile.setor,
-          created_at: profile.created_at,
-        };
-      }) || [];
+      const collaboratorsData = data?.map((profile: any) => ({
+        id: profile.id,
+        nome: profile.nome,
+        email: profile.email,
+        role: profile.user_roles[0]?.role || 'colaborador',
+        setor: profile.setor,
+        created_at: profile.created_at,
+      })) || [];
 
       setCollaborators(collaboratorsData);
     } catch (error: any) {
@@ -279,12 +279,13 @@ export default function Collaborators() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Setor</TableHead>
                   <TableHead>Data de Cadastro</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {collaborators.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                       Nenhum colaborador cadastrado
                     </TableCell>
                   </TableRow>
@@ -316,6 +317,24 @@ export default function Collaborators() {
                       <TableCell>
                         {new Date(collab.created_at).toLocaleDateString('pt-BR')}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingCollaborator(collab)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeletingCollaborator(collab)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -323,6 +342,20 @@ export default function Collaborators() {
             </Table>
           </div>
         )}
+
+        <EditCollaboratorDialog
+          open={!!editingCollaborator}
+          onOpenChange={(open) => !open && setEditingCollaborator(null)}
+          collaborator={editingCollaborator}
+          onEditComplete={fetchCollaborators}
+        />
+
+        <DeleteCollaboratorDialog
+          open={!!deletingCollaborator}
+          onOpenChange={(open) => !open && setDeletingCollaborator(null)}
+          collaborator={deletingCollaborator}
+          onDeleteComplete={fetchCollaborators}
+        />
       </div>
     </AppLayout>
   );
