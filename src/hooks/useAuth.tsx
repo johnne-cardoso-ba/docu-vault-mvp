@@ -15,18 +15,6 @@ export function useAuth() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Verificar se deve fazer logout ao fechar o navegador
-    const rememberMe = localStorage.getItem('rememberMe') === 'true';
-    
-    if (!rememberMe && session) {
-      // Se não marcou "lembrar-me", configurar para logout ao fechar navegador
-      window.addEventListener('beforeunload', () => {
-        if (!localStorage.getItem('rememberMe')) {
-          supabase.auth.signOut();
-        }
-      });
-    }
-
     // Set up auth listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
