@@ -56,6 +56,14 @@ export default function Documents() {
 
   const handleDocumentClick = async (doc: Document) => {
     try {
+      // Generate signed URL for secure access
+      const filePath = doc.file_url.split('/').slice(-2).join('/'); // Extract path from URL
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+      if (signedUrlError) throw signedUrlError;
+
       if (!doc.data_leitura && userRole === 'cliente') {
         await supabase
           .from('documents')
@@ -65,7 +73,7 @@ export default function Documents() {
         fetchDocuments();
       }
 
-      window.open(doc.file_url, '_blank');
+      window.open(signedUrlData.signedUrl, '_blank');
     } catch (error: any) {
       toast({
         title: 'Erro ao abrir documento',

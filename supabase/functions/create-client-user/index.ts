@@ -18,9 +18,14 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, nome, clientId }: CreateClientUserRequest = await req.json();
-
-    console.log('Creating user for client:', { email, nome, clientId });
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Create Supabase admin client
     const supabaseAdmin = createClient(
@@ -34,11 +39,42 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
+    // Verify user from token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: verifyAuthError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (verifyAuthError || !user) {
+      console.error('Auth error:', verifyAuthError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify admin role
+    const { data: roleData, error: verifyRoleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (verifyRoleError || roleData?.role !== 'admin') {
+      console.error('Role verification failed:', verifyRoleError);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { email, nome, clientId }: CreateClientUserRequest = await req.json();
+
+    console.log('Admin user:', user.id, 'creating user for client:', { email, nome, clientId });
+
     // Default password for clients
     const defaultPassword = 'Cliente@2025';
 
     // Create user with Supabase Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: authData, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: defaultPassword,
       email_confirm: true,
@@ -47,9 +83,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
-    if (authError) {
-      console.error('Error creating auth user:', authError);
-      throw authError;
+    if (createAuthError || !authData?.user) {
+      console.error('Error creating auth user:', createAuthError);
+      throw createAuthError;
     }
 
     console.log('Auth user created:', authData.user.id);
@@ -72,16 +108,16 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Profile created for user:', authData.user.id);
 
     // Assign 'cliente' role
-    const { error: roleError } = await supabaseAdmin
+    const { error: assignRoleError } = await supabaseAdmin
       .from('user_roles')
       .insert({
         user_id: authData.user.id,
         role: 'cliente',
       });
 
-    if (roleError) {
-      console.error('Error assigning role:', roleError);
-      throw roleError;
+    if (assignRoleError) {
+      console.error('Error assigning role:', assignRoleError);
+      throw assignRoleError;
     }
 
     console.log('Role assigned to user:', authData.user.id);

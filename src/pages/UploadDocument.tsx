@@ -75,15 +75,12 @@ export default function UploadDocument() {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('documents')
-        .getPublicUrl(filePath);
-
+      // Store the file path instead of public URL
       const { error: insertError } = await supabase.from('documents').insert([{
         client_id: formData.client_id,
         uploaded_by: user?.id,
         filename: file.name,
-        file_url: publicUrl,
+        file_url: filePath, // Store path, not public URL
         competencia: formData.competencia,
         vencimento: formData.vencimento || null,
         valor_guia: formData.valor_guia ? parseFloat(formData.valor_guia) : null,
