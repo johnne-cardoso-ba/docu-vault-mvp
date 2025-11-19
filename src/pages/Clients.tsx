@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { usePresence } from '@/hooks/usePresence';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Edit, Loader2, KeyRound } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
@@ -32,10 +34,12 @@ type Client = {
   email: string;
   telefone: string | null;
   situacao: string;
+  user_id?: string;
 };
 
 export default function Clients() {
   const { user } = useAuth();
+  const { onlineUsers } = usePresence();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -56,13 +60,32 @@ export default function Clients() {
 
   const fetchClients = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: clientsData, error } = await supabase
         .from('clients')
         .select('*')
-        .order('created_at', { ascending: false});
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setClients(data || []);
+
+      // Buscar user_id de cada cliente via profiles
+      if (clientsData) {
+        const clientEmails = clientsData.map(c => c.email);
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .in('email', clientEmails);
+
+        const profilesMap = new Map(profilesData?.map(p => [p.email, p.id]) || []);
+        
+        const clientsWithUserId = clientsData.map(client => ({
+          ...client,
+          user_id: profilesMap.get(client.email),
+        }));
+
+        setClients(clientsWithUserId);
+      } else {
+        setClients([]);
+      }
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar clientes',
@@ -279,7 +302,26 @@ export default function Clients() {
                 ) : (
                   clients.map((client) => (
                     <TableRow key={client.id}>
-                      <TableCell>{client.nome_razao_social}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {client.user_id && onlineUsers.has(client.user_id) && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Online agora</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          <span>{client.nome_razao_social}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>{client.cnpj_cpf}</TableCell>
                       <TableCell>{client.email}</TableCell>
                       <TableCell>{client.telefone || '-'}</TableCell>

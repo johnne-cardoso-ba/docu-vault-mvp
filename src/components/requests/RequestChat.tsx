@@ -8,13 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User, ArrowRightLeft, Star, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User, ArrowRightLeft, Star, Trash2, CheckCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TransferRequestDialog } from './TransferRequestDialog';
 import { RatingDialog } from './RatingDialog';
 import { DeleteRequestDialog } from './DeleteRequestDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface RequestChatProps {
   request: any;
@@ -44,7 +45,8 @@ const statusColors: Record<string, string> = {
 
 export function RequestChat({ request, onBack, isInternal = false }: RequestChatProps) {
   const { toast } = useToast();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
+  const { isOnline } = useOnlineStatus();
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
@@ -53,6 +55,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
   const [currentStatus, setCurrentStatus] = useState(request.status);
   const [currentSetor, setCurrentSetor] = useState(request.setor);
   const [atendente, setAtendente] = useState<any>(null);
+  const [clientUserId, setClientUserId] = useState<string | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showRatingDialog, setShowRatingDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -62,8 +65,10 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
   useEffect(() => {
     loadMessages();
     loadAtendente();
+    loadClientUserId();
     checkRating();
     scrollToBottom();
+    markMessagesAsRead();
 
     // Setup realtime subscription
     const channel = supabase
@@ -80,7 +85,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
           // Buscar perfil do usuário que enviou a mensagem
           const { data: profile } = await supabase
             .from('profiles')
-            .select('id, nome')
+            .select('id, nome, avatar_url')
             .eq('id', payload.new.user_id)
             .single();
 
@@ -90,6 +95,28 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
           };
 
           setMessages((current) => [...current, newMessage]);
+          
+          // Marcar como lida se não for mensagem do usuário logado
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (payload.new.user_id !== currentUser?.id) {
+            markMessageAsRead(payload.new.id);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'request_messages',
+          filter: `request_id=eq.${request.id}`,
+        },
+        (payload) => {
+          setMessages((current) =>
+            current.map((msg) =>
+              msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
+            )
+          );
         }
       )
       .subscribe();
@@ -155,6 +182,49 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
       setAtendente(data);
     } catch (error) {
       console.error('Erro ao carregar atendente:', error);
+    }
+  };
+
+  const loadClientUserId = async () => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', request.clients?.email)
+        .single();
+
+      if (profile) {
+        setClientUserId(profile.id);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar ID do cliente:', error);
+    }
+  };
+
+  const markMessagesAsRead = async () => {
+    try {
+      if (!user) return;
+
+      // Marcar como lidas todas as mensagens que não são do usuário atual
+      await supabase
+        .from('request_messages')
+        .update({ lida: true, lida_em: new Date().toISOString() })
+        .eq('request_id', request.id)
+        .neq('user_id', user.id)
+        .is('lida', false);
+    } catch (error) {
+      console.error('Erro ao marcar mensagens como lidas:', error);
+    }
+  };
+
+  const markMessageAsRead = async (messageId: string) => {
+    try {
+      await supabase
+        .from('request_messages')
+        .update({ lida: true, lida_em: new Date().toISOString() })
+        .eq('id', messageId);
+    } catch (error) {
+      console.error('Erro ao marcar mensagem como lida:', error);
     }
   };
 
@@ -385,7 +455,15 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
               <div className="flex items-center gap-2 text-sm">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">Cliente:</span>
-                <span className="text-muted-foreground">{request.clients.nome_razao_social}</span>
+                <div className="flex items-center gap-2">
+                  {clientUserId && isOnline(clientUserId) && (
+                    <span className="flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">{request.clients.nome_razao_social}</span>
+                </div>
               </div>
             )}
             {!isInternal && atendente && (
@@ -499,6 +577,12 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
                     <span className="text-xs text-muted-foreground">
                       {format(new Date(message.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </span>
+                    {message.lida && message.lida_em && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <CheckCheck className="h-3 w-3 text-blue-500" />
+                        <span>Visto às {format(new Date(message.lida_em), "HH:mm", { locale: ptBR })}</span>
+                      </div>
+                    )}
                   </div>
                   
                   {message.tipo_mensagem === 'texto' && (
