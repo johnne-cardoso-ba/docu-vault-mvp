@@ -3,104 +3,125 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, Upload, UserCog, Eye, UserX, Loader2, AlertCircle, Headset, MessageSquare } from 'lucide-react';
+import { FileText, Loader2, AlertCircle, Headset, MessageSquare, Eye } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 
 type AnalyticsData = {
-  unreadDocuments: number;
-  inactiveClients: number;
-  totalClients: number;
-  totalDocuments: number;
   pendingRequests: number;
   totalRequests: number;
+  respondedRequests: number;
+  completedRequests: number;
+  averageResponseTime: string;
+  todayRequests: number;
+  openRequests: number;
+  inProgressRequests: number;
 };
 
 export default function Dashboard() {
   const { userRole } = useAuth();
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<AnalyticsData>({
-    unreadDocuments: 0,
-    inactiveClients: 0,
-    totalClients: 0,
-    totalDocuments: 0,
     pendingRequests: 0,
     totalRequests: 0,
+    respondedRequests: 0,
+    completedRequests: 0,
+    averageResponseTime: '-',
+    todayRequests: 0,
+    openRequests: 0,
+    inProgressRequests: 0,
   });
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
   useEffect(() => {
     if (userRole === 'admin' || userRole === 'colaborador') {
       fetchAnalytics();
+    } else {
+      setLoadingAnalytics(false);
     }
   }, [userRole]);
 
   const fetchAnalytics = async () => {
     try {
-      // Fetch unread documents (documents without data_leitura)
-      const { count: unreadCount } = await supabase
-        .from('documents')
-        .select('*', { count: 'exact', head: true })
-        .is('data_leitura', null);
-
-      // Fetch total documents
-      const { count: totalDocsCount } = await supabase
-        .from('documents')
-        .select('*', { count: 'exact', head: true });
-
-      // Fetch clients who haven't accessed in 30+ days
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      // Get all clients with role 'cliente'
-      const { data: clientRoles } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'cliente');
-
-      const clientIds = clientRoles?.map(r => r.user_id) || [];
-
-      // Count inactive clients (those who never logged in or haven't logged in for 30+ days)
-      let inactiveCount = 0;
-      if (clientIds.length > 0) {
-        // This is a simplified approach - in production you'd want to track last_sign_in
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, created_at')
-          .in('id', clientIds);
-
-        // Count profiles created more than 30 days ago as potentially inactive
-        // (This is a simplification - ideally you'd track last login)
-        inactiveCount = profiles?.filter(p => {
-          const createdDate = new Date(p.created_at);
-          return createdDate < thirtyDaysAgo;
-        }).length || 0;
-      }
-
-      // Fetch total clients
-      const { count: totalClientsCount } = await supabase
-        .from('user_roles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'cliente');
-
-      // Fetch pending requests (aberto ou em_atendimento)
-      const { count: pendingRequestsCount } = await supabase
-        .from('requests')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['aberto', 'em_atendimento']);
-
       // Fetch total requests
       const { count: totalRequestsCount } = await supabase
         .from('requests')
         .select('*', { count: 'exact', head: true });
 
+      // Fetch open requests (aberto)
+      const { count: openRequestsCount } = await supabase
+        .from('requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'aberto');
+
+      // Fetch in progress requests (em_atendimento)
+      const { count: inProgressRequestsCount } = await supabase
+        .from('requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'em_atendimento');
+
+      // Fetch completed requests (concluido)
+      const { count: completedRequestsCount } = await supabase
+        .from('requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'concluido');
+
+      // Fetch pending requests (aberto ou em_atendimento)
+      const pendingCount = (openRequestsCount || 0) + (inProgressRequestsCount || 0);
+
+      // Fetch requests with at least one response (have messages)
+      const { data: allRequests } = await supabase
+        .from('requests')
+        .select('id, created_at');
+
+      let respondedCount = 0;
+      let totalResponseTime = 0;
+      let responsesWithTime = 0;
+
+      if (allRequests) {
+        for (const request of allRequests) {
+          const { data: messages } = await supabase
+            .from('request_messages')
+            .select('created_at')
+            .eq('request_id', request.id)
+            .order('created_at', { ascending: true });
+
+          if (messages && messages.length > 1) {
+            respondedCount++;
+            
+            // Calculate time to first response (difference between first and second message)
+            const firstMessageTime = new Date(messages[0].created_at).getTime();
+            const secondMessageTime = new Date(messages[1].created_at).getTime();
+            const responseTime = (secondMessageTime - firstMessageTime) / (1000 * 60 * 60); // in hours
+            
+            totalResponseTime += responseTime;
+            responsesWithTime++;
+          }
+        }
+      }
+
+      // Calculate average response time
+      const avgResponseTime = responsesWithTime > 0 
+        ? (totalResponseTime / responsesWithTime).toFixed(1) 
+        : '-';
+
+      // Fetch today's requests
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { count: todayRequestsCount } = await supabase
+        .from('requests')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', today.toISOString());
+
       setAnalytics({
-        unreadDocuments: unreadCount || 0,
-        inactiveClients: inactiveCount,
-        totalClients: totalClientsCount || 0,
-        totalDocuments: totalDocsCount || 0,
-        pendingRequests: pendingRequestsCount || 0,
+        pendingRequests: pendingCount,
         totalRequests: totalRequestsCount || 0,
+        respondedRequests: respondedCount,
+        completedRequests: completedRequestsCount || 0,
+        averageResponseTime: avgResponseTime !== '-' ? `${avgResponseTime}h` : '-',
+        todayRequests: todayRequestsCount || 0,
+        openRequests: openRequestsCount || 0,
+        inProgressRequests: inProgressRequestsCount || 0,
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -113,11 +134,11 @@ export default function Dashboard() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
-          <p className="text-muted-foreground mt-2">Bem-vindo ao sistema de gestão de documentos contábeis</p>
+          <h2 className="text-3xl font-bold text-foreground">Dashboard de Atendimento</h2>
+          <p className="text-muted-foreground mt-2">Métricas e indicadores do sistema de solicitações</p>
         </div>
 
-        {/* Analytics Cards - Only for admin and colaborador */}
+        {/* Atendimento Metrics */}
         {(userRole === 'admin' || userRole === 'colaborador') && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {loadingAnalytics ? (
@@ -129,14 +150,89 @@ export default function Dashboard() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Documentos Não Lidos
+                      Atendimentos Pendentes
+                    </CardTitle>
+                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-yellow-600">{analytics.pendingRequests}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Aguardando atendimento ou resposta
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total de Solicitações
+                    </CardTitle>
+                    <Headset className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{analytics.totalRequests}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Todas as solicitações registradas
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Atendimentos Respondidos
+                    </CardTitle>
+                    <MessageSquare className="h-4 w-4 text-blue-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">{analytics.respondedRequests}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Com pelo menos uma resposta
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Atendimentos Concluídos
+                    </CardTitle>
+                    <FileText className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">{analytics.completedRequests}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Atendimentos finalizados
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Tempo Médio de Resposta
+                    </CardTitle>
+                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-primary">{analytics.averageResponseTime}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Média entre solicitação e resposta
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Solicitações Hoje
                     </CardTitle>
                     <Eye className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-primary">{analytics.unreadDocuments}</div>
+                    <div className="text-2xl font-bold">{analytics.todayRequests}</div>
                     <p className="text-xs text-muted-foreground">
-                      Aguardando visualização pelos clientes
+                      Abertas nas últimas 24 horas
                     </p>
                   </CardContent>
                 </Card>
@@ -144,14 +240,14 @@ export default function Dashboard() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Clientes Inativos
+                      Status: Aberto
                     </CardTitle>
-                    <UserX className="h-4 w-4 text-muted-foreground" />
+                    <AlertCircle className="h-4 w-4 text-blue-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-destructive">{analytics.inactiveClients}</div>
+                    <div className="text-2xl font-bold text-blue-600">{analytics.openRequests}</div>
                     <p className="text-xs text-muted-foreground">
-                      Sem acesso há mais de 30 dias
+                      Aguardando início do atendimento
                     </p>
                   </CardContent>
                 </Card>
@@ -159,29 +255,14 @@ export default function Dashboard() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      Total de Clientes
+                      Status: Em Atendimento
                     </CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <Headset className="h-4 w-4 text-yellow-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{analytics.totalClients}</div>
+                    <div className="text-2xl font-bold text-yellow-600">{analytics.inProgressRequests}</div>
                     <p className="text-xs text-muted-foreground">
-                      Clientes cadastrados no sistema
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total de Documentos
-                    </CardTitle>
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{analytics.totalDocuments}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Documentos enviados no total
+                      Em processo de atendimento
                     </p>
                   </CardContent>
                 </Card>
@@ -190,121 +271,33 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Action Cards */}
-        <div>
-          <h3 className="text-xl font-semibold mb-4">Ações Rápidas</h3>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {userRole === 'admin' && (
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/colaboradores')}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserCog className="h-5 w-5 text-primary" />
-                  Colaboradores
-                </CardTitle>
-                <CardDescription>Gerenciar usuários colaboradores</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Cadastrar e gerenciar colaboradores do sistema
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {(userRole === 'admin' || userRole === 'colaborador') && (
-            <>
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/solicitacoes-internas')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Headset className="h-5 w-5 text-primary" />
-                    Atendimento
-                  </CardTitle>
-                  <CardDescription>Gerenciar solicitações</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Responder e gerenciar solicitações dos clientes
-                    </p>
-                    <div className="flex items-center gap-4 pt-2">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">{analytics.pendingRequests}</div>
-                        <div className="text-xs text-muted-foreground">Pendentes</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">{analytics.totalRequests}</div>
-                        <div className="text-xs text-muted-foreground">Total</div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/clientes')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Clientes
-                  </CardTitle>
-                  <CardDescription>Gerenciar clientes</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Cadastrar e gerenciar informações dos clientes
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/enviar-documento')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Upload className="h-5 w-5 text-primary" />
-                    Enviar Documentos
-                  </CardTitle>
-                  <CardDescription>Upload de documentos</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Fazer upload de documentos para os clientes
-                  </p>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {userRole === 'cliente' && (
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/solicitacoes')}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-primary" />
-                  Solicitações
-                </CardTitle>
-                <CardDescription>Abrir nova solicitação</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Enviar solicitações e acompanhar atendimentos
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/documentos')}>
+        {/* Cliente View */}
+        {userRole === 'cliente' && (
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Documentos
-              </CardTitle>
-              <CardDescription>Visualizar documentos</CardDescription>
+              <CardTitle>Bem-vindo ao Portal do Cliente</CardTitle>
+              <CardDescription>Acesse seus documentos e solicitações através do menu lateral</CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Visualizar e gerenciar todos os documentos enviados
-              </p>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Button 
+                  className="h-24 flex flex-col items-center justify-center gap-2"
+                  onClick={() => navigate('/documentos')}
+                >
+                  <FileText className="h-8 w-8" />
+                  <span>Ver Documentos</span>
+                </Button>
+                <Button 
+                  className="h-24 flex flex-col items-center justify-center gap-2"
+                  onClick={() => navigate('/solicitacoes')}
+                >
+                  <MessageSquare className="h-8 w-8" />
+                  <span>Minhas Solicitações</span>
+                </Button>
+              </div>
             </CardContent>
           </Card>
-          </div>
-        </div>
+        )}
       </div>
     </AppLayout>
   );
