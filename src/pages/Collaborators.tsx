@@ -44,7 +44,7 @@ export default function Collaborators() {
     email: '',
     password: '',
     role: 'colaborador',
-    setor: '' as '' | 'fiscal' | 'pessoal' | 'contabil' | 'controladoria' | 'procuradoria',
+    setor: 'geral' as 'geral' | 'fiscal' | 'pessoal' | 'contabil' | 'controladoria' | 'procuradoria',
   });
 
   useEffect(() => {
@@ -108,7 +108,7 @@ export default function Collaborators() {
       if (error) throw new Error(error);
 
       // Atualizar setor do colaborador se fornecido
-      if (formData.setor) {
+      if (formData.setor && formData.setor !== 'geral') {
         const { data: userData } = await supabase.auth.getUser();
         if (userData.user) {
           // Buscar o profile recém-criado
@@ -148,7 +148,7 @@ export default function Collaborators() {
       email: '',
       password: '',
       role: 'colaborador',
-      setor: '',
+      setor: 'geral',
     });
   };
 
@@ -233,7 +233,7 @@ export default function Collaborators() {
                       <SelectValue placeholder="Geral (todos os setores)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Geral (todos os setores)</SelectItem>
+                      <SelectItem value="geral">Geral (todos os setores)</SelectItem>
                       <SelectItem value="fiscal">Fiscal</SelectItem>
                       <SelectItem value="pessoal">Pessoal</SelectItem>
                       <SelectItem value="contabil">Contábil</SelectItem>
