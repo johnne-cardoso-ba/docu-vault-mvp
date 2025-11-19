@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Collaborators from "./pages/Collaborators";
 import Profile from "./pages/Profile";
+import Reports from "./pages/Reports";
 import UploadDocument from "./pages/UploadDocument";
 import Documents from "./pages/Documents";
 import Requests from "./pages/Requests";
@@ -86,6 +87,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/relatorios" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Reports />
               </ProtectedRoute>
             } 
           />

@@ -44,14 +44,39 @@ export function RatingDialog({ open, onOpenChange, request, onRatingComplete }: 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      // Buscar client_id do usuário
+      if (!request?.atendente_id) {
+        throw new Error('Solicitação sem atendente associado');
+      }
+
+      // Buscar profile do usuário
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profileData) throw new Error('Perfil não encontrado');
+
+      // Buscar client_id usando o email do profile
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id')
-        .eq('email', user.email)
-        .single();
+        .eq('email', profileData.email)
+        .maybeSingle();
 
       if (clientError) throw clientError;
+      if (!clientData) throw new Error('Cliente não encontrado');
+
+      // Verificar se já existe avaliação
+      const { data: existingRating } = await supabase
+        .from('request_ratings')
+        .select('id')
+        .eq('request_id', request.id)
+        .maybeSingle();
+
+      if (existingRating) {
+        throw new Error('Esta solicitação já foi avaliada');
+      }
 
       const { error: ratingError } = await supabase
         .from('request_ratings')
@@ -73,11 +98,11 @@ export function RatingDialog({ open, onOpenChange, request, onRatingComplete }: 
       onRatingComplete();
       onOpenChange(false);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao enviar avaliação:', error);
       toast({
         title: 'Erro ao enviar avaliação',
-        description: 'Não foi possível registrar sua avaliação.',
+        description: error.message || 'Não foi possível registrar sua avaliação.',
         variant: 'destructive',
       });
     } finally {

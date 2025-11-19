@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Upload, LogOut, UserCog, MessageSquare, Headset, User } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Upload, LogOut, UserCog, MessageSquare, Headset, User, BarChart3 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +30,7 @@ export function AppSidebar() {
     { title: 'Atendimento', url: '/solicitacoes-internas', icon: Headset },
     { title: 'Enviar Documento', url: '/enviar-documento', icon: Upload },
     { title: 'Documentos', url: '/documentos', icon: FileText },
+    { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },
   ];
 
   const colaboradorItems = [
