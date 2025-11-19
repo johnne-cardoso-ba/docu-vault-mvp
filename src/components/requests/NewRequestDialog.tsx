@@ -75,7 +75,7 @@ export function NewRequestDialog({ open, onOpenChange }: NewRequestDialogProps) 
 
       if (!client) throw new Error('Cliente não encontrado');
 
-      // Criar a solicitação (protocolo será gerado automaticamente)
+      // Criar a solicitação (protocolo será gerado automaticamente pelo trigger)
       const { data: request, error: requestError } = await supabase
         .from('requests')
         .insert([{
@@ -83,7 +83,7 @@ export function NewRequestDialog({ open, onOpenChange }: NewRequestDialogProps) 
           setor: setor as any,
           assunto,
           descricao,
-          protocol: '',
+          protocol: '', // Será substituído pelo trigger
         }])
         .select()
         .single();
