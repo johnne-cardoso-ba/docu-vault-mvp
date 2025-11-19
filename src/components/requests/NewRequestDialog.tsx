@@ -30,6 +30,13 @@ export function NewRequestDialog({ open, onOpenChange }: NewRequestDialogProps) 
   const [setor, setSetor] = useState('');
   const [files, setFiles] = useState<File[]>([]);
 
+  const resetForm = () => {
+    setAssunto('');
+    setDescricao('');
+    setSetor('');
+    setFiles([]);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFiles(Array.from(e.target.files));
