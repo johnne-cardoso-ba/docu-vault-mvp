@@ -33,6 +33,7 @@ const setoresLabels: Record<string, string> = {
 export function TransferRequestDialog({ open, onOpenChange, request, onTransferComplete }: TransferRequestDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [loadingColaboradores, setLoadingColaboradores] = useState(false);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
   const [transferType, setTransferType] = useState<'setor' | 'colaborador'>('setor');
   const [targetSetor, setTargetSetor] = useState('');
@@ -46,21 +47,42 @@ export function TransferRequestDialog({ open, onOpenChange, request, onTransferC
   }, [open]);
 
   const loadColaboradores = async () => {
+    setLoadingColaboradores(true);
     try {
-      const { data, error } = await supabase
+      // Buscar roles de colaboradores
+      const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, profiles(id, nome, email)')
+        .select('user_id')
         .eq('role', 'colaborador');
 
-      if (error) throw error;
+      if (rolesError) throw rolesError;
       
-      const colaboradoresList = data
-        .filter(item => item.profiles)
-        .map(item => item.profiles);
-      
-      setColaboradores(colaboradoresList);
+      if (!rolesData || rolesData.length === 0) {
+        console.log('Nenhum colaborador encontrado');
+        setColaboradores([]);
+        return;
+      }
+
+      // Buscar perfis dos colaboradores
+      const userIds = rolesData.map(r => r.user_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, nome, email')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      console.log('Colaboradores carregados:', profilesData);
+      setColaboradores(profilesData || []);
     } catch (error) {
       console.error('Erro ao carregar colaboradores:', error);
+      toast({
+        title: 'Erro ao carregar colaboradores',
+        description: 'Não foi possível carregar a lista de colaboradores.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingColaboradores(false);
     }
   };
 
@@ -205,18 +227,29 @@ export function TransferRequestDialog({ open, onOpenChange, request, onTransferC
           {transferType === 'colaborador' && (
             <div className="space-y-2">
               <Label>Colaborador de Destino</Label>
-              <Select value={targetColaborador} onValueChange={setTargetColaborador}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o colaborador" />
-                </SelectTrigger>
-                <SelectContent>
-                  {colaboradores.map((colab) => (
-                    <SelectItem key={colab.id} value={colab.id}>
-                      {colab.nome} ({colab.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {loadingColaboradores ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="ml-2 text-sm text-muted-foreground">Carregando...</span>
+                </div>
+              ) : colaboradores.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">
+                  Nenhum colaborador disponível
+                </p>
+              ) : (
+                <Select value={targetColaborador} onValueChange={setTargetColaborador}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o colaborador" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    {colaboradores.map((colab) => (
+                      <SelectItem key={colab.id} value={colab.id}>
+                        {colab.nome} ({colab.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           )}
 
