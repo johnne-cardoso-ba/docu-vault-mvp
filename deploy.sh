@@ -31,9 +31,14 @@ fi
 
 cd $APP_DIR
 
+# Configurar Git safe directory
+git config --global --add safe.directory /opt/app
+
+# Corrigir permissões antes de atualizar código
+chown -R $APP_USER:$APP_USER $APP_DIR
+
 echo -e "${YELLOW}📥 Baixando últimas mudanças do GitHub...${NC}"
-git fetch origin
-git reset --hard origin/main
+sudo -u $APP_USER bash -c "cd $APP_DIR && git fetch origin && git reset --hard origin/main"
 
 echo -e "${YELLOW}📦 Instalando dependências...${NC}"
 sudo -u $APP_USER bash -c "cd $APP_DIR && npm install"
