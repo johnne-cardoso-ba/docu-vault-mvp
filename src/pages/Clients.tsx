@@ -320,26 +320,26 @@ export default function Clients() {
                 Novo Cliente
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
               <DialogHeader>
                 <DialogTitle>{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
                 <DialogDescription>
                   Preencha as informações do cliente. Campos marcados com * são obrigatórios.
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit}>
-                <Tabs defaultValue="basico" className="w-full">
-                  <TabsList className="grid w-full grid-cols-6">
-                    <TabsTrigger value="basico">Básico</TabsTrigger>
-                    <TabsTrigger value="societario">Societário</TabsTrigger>
-                    <TabsTrigger value="registros">Registros</TabsTrigger>
-                    <TabsTrigger value="endereco">Endereço</TabsTrigger>
-                    <TabsTrigger value="fiscal">Fiscal</TabsTrigger>
-                    <TabsTrigger value="custom">Customizado</TabsTrigger>
+              <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                <Tabs defaultValue="basico" className="flex flex-col flex-1 overflow-hidden">
+                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-1 h-auto">
+                    <TabsTrigger value="basico" className="text-xs lg:text-sm">Básico</TabsTrigger>
+                    <TabsTrigger value="societario" className="text-xs lg:text-sm">Societário</TabsTrigger>
+                    <TabsTrigger value="registros" className="text-xs lg:text-sm">Registros</TabsTrigger>
+                    <TabsTrigger value="endereco" className="text-xs lg:text-sm">Endereço</TabsTrigger>
+                    <TabsTrigger value="fiscal" className="text-xs lg:text-sm">Fiscal</TabsTrigger>
+                    <TabsTrigger value="custom" className="text-xs lg:text-sm">Campos Extras</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="basico" className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <TabsContent value="basico" className="overflow-y-auto flex-1 pr-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                       <div className="col-span-2">
                         <Label htmlFor="nome_razao_social">Nome / Razão Social *</Label>
                         <Input
@@ -402,8 +402,8 @@ export default function Clients() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="societario" className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <TabsContent value="societario" className="overflow-y-auto flex-1 pr-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                       <div className="col-span-2">
                         <Label htmlFor="nome_socio">Nome do Sócio</Label>
                         <Input
@@ -440,8 +440,8 @@ export default function Clients() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="registros" className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <TabsContent value="registros" className="overflow-y-auto flex-1 pr-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                       <div>
                         <Label htmlFor="juceb_nire">NIRE (JUCEB)</Label>
                         <Input
@@ -478,8 +478,8 @@ export default function Clients() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="endereco" className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <TabsContent value="endereco" className="overflow-y-auto flex-1 pr-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                       <div>
                         <Label htmlFor="cep">CEP</Label>
                         <Input
@@ -550,8 +550,8 @@ export default function Clients() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="fiscal" className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                  <TabsContent value="fiscal" className="overflow-y-auto flex-1 pr-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                       <div>
                         <Label htmlFor="codigo_simples">Código Simples Nacional</Label>
                         <Input
@@ -593,55 +593,60 @@ export default function Clients() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="custom" className="space-y-4">
-                    <div>
-                      <Label>Campos Personalizados</Label>
-                      <p className="text-sm text-muted-foreground mb-4">
+                  <TabsContent value="custom" className="overflow-y-auto flex-1 pr-2">
+                    <div className="py-4">
+                      <Label className="text-base">Campos Personalizados</Label>
+                      <p className="text-sm text-muted-foreground mt-1 mb-4">
                         Adicione campos customizados específicos para este cliente
                       </p>
                       
                       <div className="flex gap-2 mb-4">
                         <Input
-                          placeholder="Nome do campo"
+                          placeholder="Nome do novo campo"
                           value={newFieldName}
                           onChange={(e) => setNewFieldName(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomField())}
                         />
-                        <Button type="button" onClick={addCustomField}>
+                        <Button type="button" onClick={addCustomField} size="icon">
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
 
-                      <div className="space-y-3">
-                        {customFields.map((field, index) => (
-                          <div key={index} className="flex gap-2">
-                            <Input
-                              placeholder="Nome do campo"
-                              value={field.key}
-                              disabled
-                              className="flex-1"
-                            />
-                            <Input
-                              placeholder="Valor"
-                              value={field.value}
-                              onChange={(e) => updateCustomFieldValue(index, e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeCustomField(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
+                      <div className="space-y-3 max-h-64 overflow-y-auto">
+                        {customFields.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-8">
+                            Nenhum campo personalizado adicionado
+                          </p>
+                        ) : (
+                          customFields.map((field, index) => (
+                            <div key={index} className="flex gap-2 items-start">
+                              <div className="flex-1">
+                                <Label className="text-xs text-muted-foreground">{field.key}</Label>
+                                <Input
+                                  placeholder="Valor"
+                                  value={field.value}
+                                  onChange={(e) => updateCustomFieldValue(index, e.target.value)}
+                                  className="mt-1"
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeCustomField(index)}
+                                className="mt-6"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </TabsContent>
                 </Tabs>
 
-                <div className="flex justify-end gap-2 mt-6">
+                <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancelar
                   </Button>
