@@ -36,8 +36,8 @@ export function NotificationBell() {
   const { user, userRole } = useAuth();
   const navigate = useNavigate();
   
-  // Configurar presença e detectar usuários online
-  usePresence((onlineUser) => {
+  // Configurar presença e detectar usuários online (apenas para admins e colaboradores)
+  usePresence(userRole === 'cliente' ? undefined : (onlineUser) => {
     // Verificar se é colaborador/admin antes de notificar
     supabase
       .from('user_roles')
