@@ -63,8 +63,7 @@ export function RequestsList() {
         .from('requests')
         .select(`
           *,
-          clients!inner(nome_razao_social, email),
-          atendente:profiles(nome)
+          clients!inner(nome_razao_social, email)
         `)
         .eq('clients.email', profile.email)
         .order('created_at', { ascending: false });
