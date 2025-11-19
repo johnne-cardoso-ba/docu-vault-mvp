@@ -46,6 +46,7 @@ export type Database = {
           regime_tributario: string | null
           responsavel_legal: string | null
           situacao: string
+          socios: Json | null
           telefone: string | null
           updated_at: string
         }
@@ -80,6 +81,7 @@ export type Database = {
           regime_tributario?: string | null
           responsavel_legal?: string | null
           situacao?: string
+          socios?: Json | null
           telefone?: string | null
           updated_at?: string
         }
@@ -114,6 +116,7 @@ export type Database = {
           regime_tributario?: string | null
           responsavel_legal?: string | null
           situacao?: string
+          socios?: Json | null
           telefone?: string | null
           updated_at?: string
         }

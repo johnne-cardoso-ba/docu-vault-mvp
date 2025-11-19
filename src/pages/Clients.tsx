@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePresence } from '@/hooks/usePresence';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,9 +25,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Edit, Loader2, KeyRound, X } from 'lucide-react';
+import { Plus, Edit, Loader2, KeyRound, X, Printer, FileText } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { ResetPasswordDialog } from '@/components/ResetPasswordDialog';
+import { ClientSheet } from '@/components/clients/ClientSheet';
+import { SociosForm } from '@/components/clients/SociosForm';
+import { useReactToPrint } from 'react-to-print';
+
+type Socio = {
+  nome: string;
+  cpf: string;
+  capital: string;
+  porcentagem: string;
+};
 
 type Client = {
   id: string;
@@ -40,6 +50,7 @@ type Client = {
   situacao: string;
   nome_socio?: string | null;
   data_nascimento?: string | null;
+  socios?: any;
   juceb_nire?: string | null;
   juceb_protocolo?: string | null;
   juceb_data_registro?: string | null;
@@ -78,6 +89,9 @@ export default function Clients() {
   const [resetPasswordClient, setResetPasswordClient] = useState<Client | null>(null);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [newFieldName, setNewFieldName] = useState('');
+  const [socios, setSocios] = useState<Socio[]>([]);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   
   const [formData, setFormData] = useState({
     nome_razao_social: '',
@@ -166,6 +180,7 @@ export default function Clients() {
       const dataToSave = {
         ...formData,
         campos_customizados: camposCustomizados,
+        socios: socios,
       };
 
       if (editingClient) {
@@ -246,6 +261,7 @@ export default function Clients() {
     });
     setEditingClient(null);
     setCustomFields([]);
+    setSocios([]);
   };
 
   const handleEdit = (client: Client) => {
@@ -288,7 +304,28 @@ export default function Clients() {
       setCustomFields(fields);
     }
     
+    // Carregar sócios
+    if (client.socios && Array.isArray(client.socios)) {
+      setSocios(client.socios);
+    } else {
+      setSocios([]);
+    }
+    
     setIsDialogOpen(true);
+  };
+
+  const addSocio = () => {
+    setSocios([...socios, { nome: '', cpf: '', capital: '', porcentagem: '' }]);
+  };
+
+  const removeSocio = (index: number) => {
+    setSocios(socios.filter((_, i) => i !== index));
+  };
+
+  const updateSocio = (index: number, field: keyof Socio, value: string) => {
+    const updated = [...socios];
+    updated[index][field] = value;
+    setSocios(updated);
   };
 
   const addCustomField = () => {
@@ -307,6 +344,10 @@ export default function Clients() {
     updated[index].value = value;
     setCustomFields(updated);
   };
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+  });
 
   return (
     <AppLayout>
@@ -329,13 +370,14 @@ export default function Clients() {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
                 <Tabs defaultValue="basico" className="flex flex-col flex-1 overflow-hidden">
-                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-1 h-auto">
+                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 gap-1 h-auto">
                     <TabsTrigger value="basico" className="text-xs lg:text-sm">Básico</TabsTrigger>
+                    <TabsTrigger value="socios" className="text-xs lg:text-sm">Sócios</TabsTrigger>
                     <TabsTrigger value="societario" className="text-xs lg:text-sm">Societário</TabsTrigger>
                     <TabsTrigger value="registros" className="text-xs lg:text-sm">Registros</TabsTrigger>
                     <TabsTrigger value="endereco" className="text-xs lg:text-sm">Endereço</TabsTrigger>
                     <TabsTrigger value="fiscal" className="text-xs lg:text-sm">Fiscal</TabsTrigger>
-                    <TabsTrigger value="custom" className="text-xs lg:text-sm">Campos Extras</TabsTrigger>
+                    <TabsTrigger value="custom" className="text-xs lg:text-sm">Extras</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="basico" className="overflow-y-auto flex-1 pr-2">
@@ -399,6 +441,17 @@ export default function Clients() {
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="socios" className="overflow-y-auto flex-1 pr-2">
+                    <div className="py-4">
+                      <SociosForm
+                        socios={socios}
+                        onAdd={addSocio}
+                        onRemove={removeSocio}
+                        onUpdate={updateSocio}
+                      />
                     </div>
                   </TabsContent>
 
@@ -716,16 +769,46 @@ export default function Clients() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(client)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setResetPasswordClient(client)}
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => setViewingClient(client)}>
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Ver Ficha Cadastral</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(client)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Editar</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setResetPasswordClient(client)}
+                                >
+                                  <KeyRound className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Redefinir Senha</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -744,6 +827,29 @@ export default function Clients() {
           clientId={resetPasswordClient.user_id || ''}
           clientName={resetPasswordClient.nome_razao_social}
         />
+      )}
+
+      {/* Dialog de Visualização da Ficha Cadastral */}
+      {viewingClient && (
+        <Dialog open={!!viewingClient} onOpenChange={(open) => !open && setViewingClient(null)}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Ficha Cadastral - {viewingClient.nome_razao_social}</DialogTitle>
+              <DialogDescription>
+                Visualize e imprima a ficha cadastral completa do cliente
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex justify-end mb-4">
+              <Button onClick={handlePrint}>
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimir Ficha
+              </Button>
+            </div>
+
+            <ClientSheet ref={printRef} client={viewingClient} />
+          </DialogContent>
+        </Dialog>
       )}
     </AppLayout>
   );
