@@ -40,7 +40,7 @@ apt install -y nginx
 npm install -g pm2
 
 # Criar usuário para a aplicação
-adduser --system --group --home /opt/app appuser
+adduser --system --group --home /opt/app --shell /bin/bash appuser
 ```
 
 ### 2.2. Configurar Firewall
@@ -85,18 +85,13 @@ VITE_SUPABASE_PROJECT_ID=seu-project-id
 
 ```bash
 # Como usuário appuser
-su - appuser
-
 cd /opt/app
 
 # Instalar dependências
-npm install
+sudo -u appuser bash -c "npm install"
 
 # Fazer build
-npm run build
-
-# Sair do usuário appuser
-exit
+sudo -u appuser bash -c "npm run build"
 ```
 
 ## 4. Configurar Nginx
@@ -217,11 +212,10 @@ systemctl status nginx
 # Verificar se o build foi feito
 ls -la /opt/app/dist
 
+```bash
 # Refazer build se necessário
 cd /opt/app
-su - appuser
-npm run build
-exit
+sudo -u appuser bash -c "npm run build"
 systemctl restart nginx
 ```
 

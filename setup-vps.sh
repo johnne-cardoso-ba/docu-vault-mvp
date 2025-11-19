@@ -38,10 +38,11 @@ npm install -g pm2
 
 echo -e "${YELLOW}👤 Criando usuário da aplicação...${NC}"
 if ! id "appuser" &>/dev/null; then
-    adduser --system --group --home /opt/app appuser
+    adduser --system --group --home /opt/app --shell /bin/bash appuser
     echo -e "${GREEN}✅ Usuário appuser criado${NC}"
 else
     echo -e "${YELLOW}⚠️  Usuário appuser já existe${NC}"
+    usermod -s /bin/bash appuser
 fi
 
 echo -e "${YELLOW}🔥 Configurando firewall...${NC}"
@@ -72,6 +73,6 @@ echo "  git clone https://github.com/seu-usuario/seu-repo.git /opt/app"
 echo "  nano /opt/app/.env"
 echo "  cp /opt/app/nginx.conf /etc/nginx/sites-available/app"
 echo "  ln -s /etc/nginx/sites-available/app /etc/nginx/sites-enabled/"
-echo "  cd /opt/app && su - appuser -c 'npm install && npm run build'"
+echo "  cd /opt/app && sudo -u appuser bash -c 'npm install && npm run build'"
 echo "  systemctl restart nginx"
 echo ""
