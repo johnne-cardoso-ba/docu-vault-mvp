@@ -475,7 +475,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
             )}
           </div>
 
-          {!isInternal && currentStatus === 'concluido' && !hasRating && (
+          {!isInternal && currentStatus === 'concluido' && !hasRating && request.atendente_id && (
             <div className="pt-4 border-t">
               <Button
                 variant="outline"
@@ -544,7 +544,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
             </div>
           )}
 
-          {!isInternal && currentStatus === 'concluido' && !hasRating && (
+          {!isInternal && currentStatus === 'concluido' && !hasRating && request.atendente_id && (
             <div className="pt-4 border-t">
               <Button
                 onClick={() => setShowRatingDialog(true)}
