@@ -4,8 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Star, Trophy, TrendingUp, MessageSquare, Loader2 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
 
 type ColaboradorRating = {
   id: string;
@@ -23,21 +21,12 @@ type ColaboradorRating = {
 };
 
 export default function Reports() {
-  const { userRole, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
   const [colaboradores, setColaboradores] = useState<ColaboradorRating[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Aguardar o carregamento da autenticação antes de verificar a role
-    if (authLoading) return;
-    
-    if (userRole !== 'admin') {
-      navigate('/dashboard');
-      return;
-    }
     fetchRatingsReport();
-  }, [userRole, authLoading, navigate]);
+  }, []);
 
   const fetchRatingsReport = async () => {
     try {
@@ -128,7 +117,7 @@ export default function Reports() {
     );
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-64">
