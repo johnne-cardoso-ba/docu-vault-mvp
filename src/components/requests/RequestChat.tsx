@@ -61,7 +61,40 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
     loadAtendente();
     checkRating();
     scrollToBottom();
-  }, []);
+
+    // Setup realtime subscription
+    const channel = supabase
+      .channel(`request_messages_${request.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'request_messages',
+          filter: `request_id=eq.${request.id}`,
+        },
+        async (payload) => {
+          // Buscar perfil do usuário que enviou a mensagem
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, nome')
+            .eq('id', payload.new.user_id)
+            .single();
+
+          const newMessage = {
+            ...payload.new,
+            profiles: profile || null
+          };
+
+          setMessages((current) => [...current, newMessage]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [request.id]);
 
   useEffect(() => {
     scrollToBottom();
