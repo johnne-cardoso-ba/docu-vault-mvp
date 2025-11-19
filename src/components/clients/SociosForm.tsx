@@ -1,20 +1,21 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, X } from 'lucide-react';
 
 type Socio = {
   nome: string;
-  cpf: string;
   capital: string;
   porcentagem: string;
+  responsavel_legal: boolean;
 };
 
 interface SociosFormProps {
   socios: Socio[];
   onAdd: () => void;
   onRemove: (index: number) => void;
-  onUpdate: (index: number, field: keyof Socio, value: string) => void;
+  onUpdate: (index: number, field: keyof Socio, value: string | boolean) => void;
 }
 
 export function SociosForm({ socios, onAdd, onRemove, onUpdate }: SociosFormProps) {
@@ -25,7 +26,7 @@ export function SociosForm({ socios, onAdd, onRemove, onUpdate }: SociosFormProp
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-base">Quadro Societário</Label>
+          <Label className="text-base">Sócios</Label>
           <p className="text-sm text-muted-foreground mt-1">
             Adicione os sócios e suas respectivas participações
           </p>
@@ -72,17 +73,6 @@ export function SociosForm({ socios, onAdd, onRemove, onUpdate }: SociosFormProp
                 </div>
                 
                 <div>
-                  <Label htmlFor={`socio-cpf-${index}`}>CPF *</Label>
-                  <Input
-                    id={`socio-cpf-${index}`}
-                    value={socio.cpf}
-                    onChange={(e) => onUpdate(index, 'cpf', e.target.value)}
-                    placeholder="000.000.000-00"
-                    required
-                  />
-                </div>
-                
-                <div>
                   <Label htmlFor={`socio-capital-${index}`}>Capital Social (R$) *</Label>
                   <Input
                     id={`socio-capital-${index}`}
@@ -96,7 +86,7 @@ export function SociosForm({ socios, onAdd, onRemove, onUpdate }: SociosFormProp
                   />
                 </div>
                 
-                <div className="col-span-2">
+                <div>
                   <Label htmlFor={`socio-porcentagem-${index}`}>Participação (%) *</Label>
                   <Input
                     id={`socio-porcentagem-${index}`}
@@ -109,6 +99,17 @@ export function SociosForm({ socios, onAdd, onRemove, onUpdate }: SociosFormProp
                     placeholder="0.00"
                     required
                   />
+                </div>
+                
+                <div className="col-span-2 flex items-center space-x-2">
+                  <Checkbox
+                    id={`socio-responsavel-${index}`}
+                    checked={socio.responsavel_legal}
+                    onCheckedChange={(checked) => onUpdate(index, 'responsavel_legal', checked as boolean)}
+                  />
+                  <Label htmlFor={`socio-responsavel-${index}`} className="cursor-pointer">
+                    É o responsável legal da empresa
+                  </Label>
                 </div>
               </div>
             </div>

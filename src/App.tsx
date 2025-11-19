@@ -7,6 +7,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Collaborators from "./pages/Collaborators";
+import CollaboratorSettings from "./pages/CollaboratorSettings";
 import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
 import UploadDocument from "./pages/UploadDocument";
@@ -51,6 +52,14 @@ const App = () => (
             } 
           />
           <Route 
+            path="/configuracoes-colaboradores" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <CollaboratorSettings />
+              </ProtectedRoute>
+            } 
+          />
+          <Route
             path="/enviar-documento" 
             element={
               <ProtectedRoute allowedRoles={['admin', 'colaborador']}>

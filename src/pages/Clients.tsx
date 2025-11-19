@@ -34,9 +34,9 @@ import { useReactToPrint } from 'react-to-print';
 
 type Socio = {
   nome: string;
-  cpf: string;
   capital: string;
   porcentagem: string;
+  responsavel_legal: boolean;
 };
 
 type Client = {
@@ -79,7 +79,7 @@ type CustomField = {
 };
 
 export default function Clients() {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { onlineUsers } = usePresence();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,12 +91,12 @@ export default function Clients() {
   const [newFieldName, setNewFieldName] = useState('');
   const [socios, setSocios] = useState<Socio[]>([]);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
+  const [canEditSituation, setCanEditSituation] = useState(true);
   const printRef = useRef<HTMLDivElement>(null);
   
   const [formData, setFormData] = useState({
     nome_razao_social: '',
     cnpj_cpf: '',
-    cpf: '',
     cnpj: '',
     email: '',
     telefone: '',
@@ -125,7 +125,33 @@ export default function Clients() {
 
   useEffect(() => {
     fetchClients();
-  }, []);
+    checkPermissions();
+  }, [user, userRole]);
+
+  const checkPermissions = async () => {
+    if (!user || userRole !== 'colaborador') {
+      setCanEditSituation(true);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('collaborator_permissions')
+        .select('can_edit_client_situation')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        // Se não houver permissões configuradas, usar padrão (não pode editar situação)
+        setCanEditSituation(false);
+        return;
+      }
+
+      setCanEditSituation(data.can_edit_client_situation);
+    } catch (error) {
+      setCanEditSituation(false);
+    }
+  };
 
   const fetchClients = async () => {
     try {
@@ -233,7 +259,6 @@ export default function Clients() {
     setFormData({
       nome_razao_social: '',
       cnpj_cpf: '',
-      cpf: '',
       cnpj: '',
       email: '',
       telefone: '',
@@ -269,7 +294,6 @@ export default function Clients() {
     setFormData({
       nome_razao_social: client.nome_razao_social,
       cnpj_cpf: client.cnpj_cpf,
-      cpf: client.cpf || '',
       cnpj: client.cnpj || '',
       email: client.email,
       telefone: client.telefone || '',
@@ -315,16 +339,16 @@ export default function Clients() {
   };
 
   const addSocio = () => {
-    setSocios([...socios, { nome: '', cpf: '', capital: '', porcentagem: '' }]);
+    setSocios([...socios, { nome: '', capital: '', porcentagem: '', responsavel_legal: false }]);
   };
 
   const removeSocio = (index: number) => {
     setSocios(socios.filter((_, i) => i !== index));
   };
 
-  const updateSocio = (index: number, field: keyof Socio, value: string) => {
+  const updateSocio = (index: number, field: keyof Socio, value: string | boolean) => {
     const updated = [...socios];
-    updated[index][field] = value;
+    updated[index][field] = value as never;
     setSocios(updated);
   };
 
@@ -449,15 +473,6 @@ export default function Clients() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="cpf">CPF</Label>
-                        <Input
-                          id="cpf"
-                          value={formData.cpf}
-                          onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-                          placeholder="000.000.000-00"
-                        />
-                      </div>
-                      <div>
                         <Label htmlFor="cnpj">CNPJ</Label>
                         <div className="flex gap-2">
                           <Input
@@ -510,7 +525,11 @@ export default function Clients() {
                       </div>
                       <div className="col-span-2">
                         <Label htmlFor="situacao">Situação</Label>
-                        <Select value={formData.situacao} onValueChange={(value) => setFormData({ ...formData, situacao: value })}>
+                        <Select 
+                          value={formData.situacao} 
+                          onValueChange={(value) => setFormData({ ...formData, situacao: value })}
+                          disabled={!canEditSituation}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -520,6 +539,11 @@ export default function Clients() {
                             <SelectItem value="Suspenso">Suspenso</SelectItem>
                           </SelectContent>
                         </Select>
+                        {!canEditSituation && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Você não tem permissão para alterar a situação do cliente
+                          </p>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
