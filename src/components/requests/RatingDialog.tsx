@@ -44,8 +44,28 @@ export function RatingDialog({ open, onOpenChange, request, onRatingComplete }: 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
-      if (!request?.atendente_id) {
-        throw new Error('Solicitação sem atendente associado');
+      // Determinar atendente responsável pelo atendimento
+      let atendenteId = request?.atendente_id as string | null;
+
+      // Se a solicitação não tiver atendente definido (casos antigos),
+      // buscar no histórico quem marcou o status como concluído
+      if (!atendenteId) {
+        const { data: historyData, error: historyError } = await supabase
+          .from('request_history')
+          .select('changed_by')
+          .eq('request_id', request.id)
+          .eq('tipo_mudanca', 'status')
+          .eq('valor_novo', 'concluido')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (historyError) throw historyError;
+        if (!historyData) {
+          throw new Error('Solicitação sem atendente associado');
+        }
+
+        atendenteId = historyData.changed_by;
       }
 
       // Buscar profile do usuário
@@ -83,7 +103,7 @@ export function RatingDialog({ open, onOpenChange, request, onRatingComplete }: 
         .insert({
           request_id: request.id,
           client_id: clientData.id,
-          atendente_id: request.atendente_id,
+          atendente_id: atendenteId!,
           rating,
           comentario: comentario.trim() || null,
         });
