@@ -45,7 +45,7 @@ export function RequestsList() {
     try {
       const { data, error } = await supabase
         .from('requests')
-        .select('*, clients(nome_razao_social)')
+        .select('*, clients(nome_razao_social), profiles!requests_atendente_id_fkey(nome)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -156,9 +156,17 @@ export function RequestsList() {
                     {request.descricao}
                   </p>
                   
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    {format(new Date(request.created_at), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                  <div className="flex flex-col gap-1">
+                    {request.profiles?.nome && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <MessageSquare className="h-3 w-3" />
+                        Atendente: {request.profiles.nome}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {format(new Date(request.created_at), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                    </div>
                   </div>
                 </div>
               </div>

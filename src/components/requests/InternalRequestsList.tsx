@@ -43,9 +43,14 @@ export function InternalRequestsList() {
 
   const loadRequests = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Buscar solicitações onde o colaborador é o atendente OU não há atendente
       const { data, error } = await supabase
         .from('requests')
         .select('*, clients(nome_razao_social, email)')
+        .or(`atendente_id.eq.${user.id},atendente_id.is.null`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

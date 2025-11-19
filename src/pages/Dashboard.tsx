@@ -62,6 +62,18 @@ export default function Dashboard() {
 
   const fetchAnalytics = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Verificar se é colaborador para filtrar métricas
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      const isColaborador = roleData?.role === 'colaborador';
+
       // Fetch total documents
       const { count: totalDocsCount } = await supabase
         .from('documents')
@@ -102,36 +114,66 @@ export default function Dashboard() {
         }
       }
 
-      // Fetch total requests
-      const { count: totalRequestsCount } = await supabase
+      // Fetch total requests (filtrado por colaborador se necessário)
+      let requestsQuery = supabase
         .from('requests')
         .select('*', { count: 'exact', head: true });
+      
+      if (isColaborador) {
+        requestsQuery = requestsQuery.or(`atendente_id.eq.${user.id},atendente_id.is.null`);
+      }
+      
+      const { count: totalRequestsCount } = await requestsQuery;
 
       // Fetch open requests (aberto)
-      const { count: openRequestsCount } = await supabase
+      let openQuery = supabase
         .from('requests')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'aberto');
+      
+      if (isColaborador) {
+        openQuery = openQuery.or(`atendente_id.eq.${user.id},atendente_id.is.null`);
+      }
+      
+      const { count: openRequestsCount } = await openQuery;
 
       // Fetch in progress requests (em_atendimento)
-      const { count: inProgressRequestsCount } = await supabase
+      let inProgressQuery = supabase
         .from('requests')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'em_atendimento');
+      
+      if (isColaborador) {
+        inProgressQuery = inProgressQuery.or(`atendente_id.eq.${user.id},atendente_id.is.null`);
+      }
+      
+      const { count: inProgressRequestsCount } = await inProgressQuery;
 
       // Fetch completed requests (concluido)
-      const { count: completedRequestsCount } = await supabase
+      let completedQuery = supabase
         .from('requests')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'concluido');
+      
+      if (isColaborador) {
+        completedQuery = completedQuery.eq('atendente_id', user.id);
+      }
+      
+      const { count: completedRequestsCount } = await completedQuery;
 
       // Fetch pending requests (aberto ou em_atendimento)
       const pendingCount = (openRequestsCount || 0) + (inProgressRequestsCount || 0);
 
       // Fetch requests with at least one response (have messages)
-      const { data: allRequests } = await supabase
+      let allRequestsQuery = supabase
         .from('requests')
         .select('id, created_at');
+      
+      if (isColaborador) {
+        allRequestsQuery = allRequestsQuery.or(`atendente_id.eq.${user.id},atendente_id.is.null`);
+      }
+      
+      const { data: allRequests } = await allRequestsQuery;
 
       let respondedCount = 0;
       let totalResponseTime = 0;
@@ -167,10 +209,16 @@ export default function Dashboard() {
       // Fetch today's requests
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const { count: todayRequestsCount } = await supabase
+      let todayQuery = supabase
         .from('requests')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', today.toISOString());
+      
+      if (isColaborador) {
+        todayQuery = todayQuery.or(`atendente_id.eq.${user.id},atendente_id.is.null`);
+      }
+      
+      const { count: todayRequestsCount } = await todayQuery;
 
       setAnalytics({
         totalDocuments: totalDocsCount || 0,
