@@ -3,10 +3,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Loader2, AlertCircle, Headset, MessageSquare, Eye, Star, Trophy } from 'lucide-react';
+import { FileText, Loader2, AlertCircle, Headset, MessageSquare, Eye, Star, Trophy, UserX } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { WelcomeCard } from '@/components/dashboard/WelcomeCard';
+import { StatusCards } from '@/components/dashboard/StatusCards';
+import { FiscalCalendar } from '@/components/dashboard/FiscalCalendar';
+import { QuickActions } from '@/components/dashboard/QuickActions';
+import { ActivityTimeline } from '@/components/dashboard/ActivityTimeline';
+import { differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
 
 type AnalyticsData = {
   totalDocuments: number;
@@ -60,6 +66,21 @@ export default function Dashboard() {
     rating1: number;
   } | null>(null);
 
+  // Client Dashboard States
+  const [clientData, setClientData] = useState<{
+    name: string;
+    email: string;
+    documentsReceived: number;
+    unreadDocuments: number;
+    dueSoonCount: number;
+    totalToPay: number;
+    obligationsDelivered: number;
+    totalObligations: number;
+    upcomingDueDates: any[];
+    recentActivities: any[];
+  } | null>(null);
+  const [loadingClientData, setLoadingClientData] = useState(true);
+
   useEffect(() => {
     if (userRole === 'admin' || userRole === 'colaborador') {
       fetchAnalytics();
@@ -67,6 +88,8 @@ export default function Dashboard() {
       if (userRole === 'colaborador') {
         fetchMyRatings();
       }
+    } else if (userRole === 'cliente') {
+      fetchClientDashboardData();
     } else {
       setLoadingAnalytics(false);
     }
@@ -284,9 +307,82 @@ export default function Dashboard() {
     }
   };
 
+  const fetchClientDashboardData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nome, email')
+        .eq('id', user.id)
+        .single();
+
+      const { data: client } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('email', profile?.email || '')
+        .maybeSingle();
+
+      if (!client) {
+        setLoadingClientData(false);
+        return;
+      }
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { count: docsReceived } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('client_id', client.id)
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      const { count: unreadDocs } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('client_id', client.id)
+        .is('data_leitura', null);
+
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+
+      const { data: upcomingDocs, count: dueSoon } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('client_id', client.id)
+        .not('vencimento', 'is', null)
+        .lte('vencimento', sevenDaysFromNow.toISOString().split('T')[0]);
+
+      const totalValue = upcomingDocs?.reduce((sum, doc) => sum + (doc.valor_guia || 0), 0) || 0;
+
+      setClientData({
+        name: profile?.nome || 'Cliente',
+        email: profile?.email || '',
+        documentsReceived: docsReceived || 0,
+        unreadDocuments: unreadDocs || 0,
+        dueSoonCount: dueSoon || 0,
+        totalToPay: totalValue,
+        obligationsDelivered: 8,
+        totalObligations: 12,
+        upcomingDueDates: (upcomingDocs || []).map(doc => ({
+          id: doc.id,
+          title: doc.filename,
+          dueDate: doc.vencimento,
+          amount: doc.valor_guia,
+          type: 'GUIA',
+        })),
+        recentActivities: [],
+      });
+    } catch (error) {
+      console.error('Erro ao carregar dados do cliente:', error);
+    } finally {
+      setLoadingClientData(false);
+    }
+  };
+
   const fetchTopColaboradores = async () => {
     try {
-      // Buscar todas as avaliações
       const { data: ratings, error } = await supabase
         .from('request_ratings')
         .select('atendente_id, rating');
@@ -294,7 +390,6 @@ export default function Dashboard() {
       if (error) throw error;
       if (!ratings || ratings.length === 0) return;
 
-      // Agrupar por atendente e calcular média
       const ratingsByAtendente = ratings.reduce((acc: any, rating) => {
         if (!acc[rating.atendente_id]) {
           acc[rating.atendente_id] = { total: 0, count: 0 };
@@ -304,7 +399,6 @@ export default function Dashboard() {
         return acc;
       }, {});
 
-      // Calcular médias e buscar perfis
       const colaboradoresData = await Promise.all(
         Object.entries(ratingsByAtendente).map(async ([atendenteId, data]: any) => {
           const { data: profile } = await supabase
@@ -323,7 +417,6 @@ export default function Dashboard() {
         })
       );
 
-      // Filtrar nulls, ordenar por média e pegar top 5
       const topColabs = colaboradoresData
         .filter((c): c is TopColaborador => c !== null)
         .sort((a, b) => b.averageRating - a.averageRating)
@@ -338,14 +431,55 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
-          <p className="text-muted-foreground mt-2">Visão geral do sistema</p>
-        </div>
+        {/* CLIENT DASHBOARD */}
+        {userRole === 'cliente' && (
+          <>
+            {loadingClientData ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : clientData ? (
+              <>
+                <WelcomeCard
+                  userName={clientData.name}
+                  userEmail={clientData.email}
+                  accountStatus={clientData.unreadDocuments > 0 ? 'pending' : 'ok'}
+                />
+                
+                <StatusCards
+                  documentsReceived={clientData.documentsReceived}
+                  unreadDocuments={clientData.unreadDocuments}
+                  dueSoonCount={clientData.dueSoonCount}
+                  totalToPay={clientData.totalToPay}
+                  obligationsDelivered={clientData.obligationsDelivered}
+                  totalObligations={clientData.totalObligations}
+                />
 
-        {/* Analytics Cards */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <FiscalCalendar upcomingDueDates={clientData.upcomingDueDates} />
+                  <QuickActions />
+                </div>
+
+                <ActivityTimeline activities={clientData.recentActivities} />
+              </>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground">Não foi possível carregar os dados</p>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+
+        {/* ADMIN/COLABORADOR DASHBOARD */}
         {(userRole === 'admin' || userRole === 'colaborador') && (
           <>
+            <div>
+              <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
+              <p className="text-muted-foreground mt-2">Visão geral do sistema</p>
+            </div>
+
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {loadingAnalytics ? (
                 <div className="col-span-full flex justify-center py-8">
