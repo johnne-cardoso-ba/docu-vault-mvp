@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -138,7 +139,8 @@ export default function NFSeConfig() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <AppLayout>
+      <div className="container mx-auto max-w-4xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Configuração NFS-e</h1>
         <p className="text-muted-foreground">Configure os dados para emissão de NFS-e em Salvador/BA</p>
@@ -280,6 +282,7 @@ export default function NFSeConfig() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
