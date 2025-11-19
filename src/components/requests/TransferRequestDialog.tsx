@@ -49,21 +49,21 @@ export function TransferRequestDialog({ open, onOpenChange, request, onTransferC
   const loadColaboradores = async () => {
     setLoadingColaboradores(true);
     try {
-      // Buscar roles de colaboradores
+      // Buscar roles de colaboradores e admins
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id')
-        .eq('role', 'colaborador');
+        .select('user_id, role')
+        .in('role', ['colaborador', 'admin']);
 
       if (rolesError) throw rolesError;
       
       if (!rolesData || rolesData.length === 0) {
-        console.log('Nenhum colaborador encontrado');
+        console.log('Nenhum colaborador ou admin encontrado');
         setColaboradores([]);
         return;
       }
 
-      // Buscar perfis dos colaboradores
+      // Buscar perfis dos colaboradores e admins
       const userIds = rolesData.map(r => r.user_id);
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
