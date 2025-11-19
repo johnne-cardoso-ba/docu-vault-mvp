@@ -1,9 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Star, Trophy, TrendingUp, MessageSquare, Loader2 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+} from 'recharts';
 
 type ColaboradorRating = {
   id: string;
@@ -23,6 +33,28 @@ type ColaboradorRating = {
 export default function Reports() {
   const [colaboradores, setColaboradores] = useState<ColaboradorRating[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const chartData = useMemo(
+    () =>
+      colaboradores.map((colab) => ({
+        name: colab.nome.split(' ')[0],
+        media: Number(colab.averageRating.toFixed(2)),
+        total: colab.totalRatings,
+      })),
+    [colaboradores]
+  );
+
+  const globalDistribution = useMemo(
+    () =>
+      [5, 4, 3, 2, 1].map((rating) => ({
+        ratingLabel: `${rating}★`,
+        quantidade: colaboradores.reduce((sum, colab) => {
+          const count = colab[`rating${rating}` as keyof ColaboradorRating] as number;
+          return sum + (count || 0);
+        }, 0),
+      })),
+    [colaboradores]
+  );
 
   useEffect(() => {
     fetchRatingsReport();
@@ -150,6 +182,69 @@ export default function Reports() {
           </Card>
         ) : (
           <>
+            {/* Visão geral em gráficos */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Média por colaborador
+                  </CardTitle>
+                  <CardDescription>
+                    Comparação da média de avaliação entre colaboradores
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+                      <YAxis domain={[0, 5]} stroke="hsl(var(--muted-foreground))" />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          borderColor: 'hsl(var(--border))',
+                          color: 'hsl(var(--popover-foreground))',
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="media" name="Média" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5" />
+                    Distribuição geral de notas
+                  </CardTitle>
+                  <CardDescription>
+                    Quantidade total de avaliações por nota
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={globalDistribution} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="ratingLabel" stroke="hsl(var(--muted-foreground))" />
+                      <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          borderColor: 'hsl(var(--border))',
+                          color: 'hsl(var(--popover-foreground))',
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="quantidade" name="Quantidade" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Top 3 */}
             <div className="grid gap-6 md:grid-cols-3">
               {colaboradores.slice(0, 3).map((colab, index) => (
