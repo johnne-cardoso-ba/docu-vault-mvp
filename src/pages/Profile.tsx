@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Upload, X } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
+import { ProtectedClientData } from '@/components/clients/ProtectedClientData';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -296,6 +298,20 @@ export default function Profile() {
             </CardContent>
           </Card>
         </form>
+
+        {/* Dados Cadastrais Protegidos - Apenas para Clientes */}
+        {userRole === 'cliente' && (
+          <>
+            <Separator className="my-8" />
+            <div className="mb-4">
+              <h3 className="text-2xl font-bold">Dados Cadastrais</h3>
+              <p className="text-muted-foreground mt-1">
+                Visualize suas informações cadastrais completas
+              </p>
+            </div>
+            <ProtectedClientData />
+          </>
+        )}
       </div>
     </AppLayout>
   );
