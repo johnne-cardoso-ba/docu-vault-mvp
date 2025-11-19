@@ -8,20 +8,26 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { usePresence } from '@/hooks/usePresence';
+import { toast } from '@/hooks/use-toast';
 
 interface Notification {
   id: string;
   request_id: string;
   protocol: string;
   assunto: string;
-  tipo: 'nova_mensagem' | 'status_alterado';
+  tipo: 'nova_mensagem' | 'status_alterado' | 'usuario_online';
   created_at: string;
   lida: boolean;
+  user_nome?: string;
+  user_avatar?: string;
+  user_id?: string;
 }
 
 export function NotificationBell() {
@@ -29,6 +35,34 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const { user, userRole } = useAuth();
   const navigate = useNavigate();
+  
+  // Configurar presença e detectar usuários online
+  usePresence((onlineUser) => {
+    // Adicionar notificação de presença
+    const presenceNotification: Notification = {
+      id: `presence-${onlineUser.user_id}-${Date.now()}`,
+      request_id: '',
+      protocol: '',
+      assunto: `${onlineUser.nome} está online`,
+      tipo: 'usuario_online',
+      created_at: new Date().toISOString(),
+      lida: false,
+      user_nome: onlineUser.nome,
+      user_avatar: onlineUser.avatar_url,
+      user_id: onlineUser.user_id,
+    };
+    
+    setNotifications(prev => [presenceNotification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+    playNotificationSound();
+    
+    // Toast para notificação mais visível
+    toast({
+      title: '👤 Colaborador online',
+      description: `${onlineUser.nome} acabou de ficar online`,
+    });
+  });
+  
   const [audio] = useState(() => {
     const audio = new Audio();
     // Som de notificação (usando um tom simples)
@@ -150,11 +184,17 @@ export function NotificationBell() {
     await loadNotifications();
   };
 
-  const handleNotificationClick = (requestId: string) => {
-    if (userRole === 'cliente') {
-      navigate('/solicitacoes');
-    } else {
-      navigate('/solicitacoes-internas');
+  const handleNotificationClick = (requestId: string, userId?: string) => {
+    if (userId) {
+      // Se é notificação de presença, ir para atendimento
+      navigate('/atendimento');
+    } else if (requestId) {
+      // Se é notificação de request, ir para o request específico
+      if (userRole === 'cliente') {
+        navigate(`/solicitacoes`);
+      } else {
+        navigate('/solicitacoes-internas');
+      }
     }
   };
 
@@ -203,16 +243,32 @@ export function NotificationBell() {
                     className={`p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors ${
                       !notif.lida ? 'bg-primary/5 border-primary/20' : 'border-border'
                     }`}
-                    onClick={() => handleNotificationClick(notif.request_id)}
+                    onClick={() => handleNotificationClick(notif.request_id, notif.user_id)}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
+                    <div className="flex items-start gap-3">
+                      {notif.tipo === 'usuario_online' && (
+                        <Avatar className="h-10 w-10 flex-shrink-0">
+                          <AvatarImage src={notif.user_avatar} alt={notif.user_nome} />
+                          <AvatarFallback>
+                            {notif.user_nome?.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">
-                          {notif.tipo === 'nova_mensagem' ? 'Nova mensagem' : 'Status alterado'}
+                          {notif.tipo === 'nova_mensagem' && 'Nova mensagem'}
+                          {notif.tipo === 'status_alterado' && 'Status alterado'}
+                          {notif.tipo === 'usuario_online' && '🟢 Colaborador online'}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          #{notif.protocol} - {notif.assunto}
-                        </p>
+                        {notif.tipo === 'usuario_online' ? (
+                          <p className="text-sm text-muted-foreground truncate">
+                            {notif.assunto}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground truncate">
+                            #{notif.protocol} - {notif.assunto}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground mt-1">
                           {format(new Date(notif.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                         </p>

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User, ArrowRightLeft, Star, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -121,7 +122,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
         const userIds = [...new Set(messagesData.map(m => m.user_id))];
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('id, nome')
+          .select('id, nome, avatar_url')
           .in('id', userIds);
 
         const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
@@ -486,11 +487,17 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
           <div className="space-y-4 max-h-[500px] overflow-y-auto">
             {messages.map((message) => (
               <div key={message.id} className="flex gap-3">
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{message.profiles?.nome || 'Sistema'}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(message.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                <Avatar className="h-8 w-8 flex-shrink-0">
+                  <AvatarImage src={message.profiles?.avatar_url} alt={message.profiles?.nome} />
+                  <AvatarFallback>
+                    {message.profiles?.nome?.substring(0, 2).toUpperCase() || 'SI'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{message.profiles?.nome || 'Sistema'}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(message.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </span>
                   </div>
                   
