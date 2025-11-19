@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User, ArrowRightLeft, Star } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User, ArrowRightLeft, Star, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TransferRequestDialog } from './TransferRequestDialog';
@@ -161,7 +161,7 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
         .from('request_ratings')
         .select('id')
         .eq('request_id', request.id)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setHasRating(true);
@@ -169,6 +169,32 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
     } catch (error) {
       // Não há avaliação ainda
       setHasRating(false);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta mensagem?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('request_messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      setMessages(messages.filter(m => m.id !== messageId));
+      
+      toast({
+        title: 'Mensagem excluída',
+        description: 'A mensagem foi removida com sucesso.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir mensagem',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -474,6 +500,16 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
                     </div>
                   )}
                 </div>
+                {userRole === 'admin' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteMessage(message.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ))}
             <div ref={messagesEndRef} />
