@@ -3,9 +3,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Loader2, AlertCircle, Headset, MessageSquare, Eye } from 'lucide-react';
+import { FileText, Loader2, AlertCircle, Headset, MessageSquare, Eye, Star, Trophy } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { supabase } from '@/integrations/supabase/client';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 type AnalyticsData = {
   totalDocuments: number;
@@ -20,6 +21,14 @@ type AnalyticsData = {
   todayRequests: number;
   openRequests: number;
   inProgressRequests: number;
+};
+
+type TopColaborador = {
+  id: string;
+  nome: string;
+  email: string;
+  averageRating: number;
+  totalRatings: number;
 };
 
 export default function Dashboard() {
@@ -40,10 +49,12 @@ export default function Dashboard() {
     inProgressRequests: 0,
   });
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const [topColaboradores, setTopColaboradores] = useState<TopColaborador[]>([]);
 
   useEffect(() => {
     if (userRole === 'admin' || userRole === 'colaborador') {
       fetchAnalytics();
+      fetchTopColaboradores();
     } else {
       setLoadingAnalytics(false);
     }
@@ -182,6 +193,57 @@ export default function Dashboard() {
     }
   };
 
+  const fetchTopColaboradores = async () => {
+    try {
+      // Buscar todas as avaliações
+      const { data: ratings, error } = await supabase
+        .from('request_ratings')
+        .select('atendente_id, rating');
+
+      if (error) throw error;
+      if (!ratings || ratings.length === 0) return;
+
+      // Agrupar por atendente e calcular média
+      const ratingsByAtendente = ratings.reduce((acc: any, rating) => {
+        if (!acc[rating.atendente_id]) {
+          acc[rating.atendente_id] = { total: 0, count: 0 };
+        }
+        acc[rating.atendente_id].total += rating.rating;
+        acc[rating.atendente_id].count += 1;
+        return acc;
+      }, {});
+
+      // Calcular médias e buscar perfis
+      const colaboradoresData = await Promise.all(
+        Object.entries(ratingsByAtendente).map(async ([atendenteId, data]: any) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, nome, email')
+            .eq('id', atendenteId)
+            .single();
+
+          if (!profile) return null;
+
+          return {
+            ...profile,
+            averageRating: data.total / data.count,
+            totalRatings: data.count,
+          };
+        })
+      );
+
+      // Filtrar nulls, ordenar por média e pegar top 5
+      const topColabs = colaboradoresData
+        .filter((c): c is TopColaborador => c !== null)
+        .sort((a, b) => b.averageRating - a.averageRating)
+        .slice(0, 5);
+
+      setTopColaboradores(topColabs);
+    } catch (error) {
+      console.error('Erro ao buscar top colaboradores:', error);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -200,22 +262,22 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <>
-                  <Card>
+                  <Card className="border-l-4 border-l-blue-500">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">
                         Total de Documentos
                       </CardTitle>
-                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <FileText className="h-4 w-4 text-blue-500" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{analytics.totalDocuments}</div>
+                      <div className="text-2xl font-bold text-blue-600">{analytics.totalDocuments}</div>
                       <p className="text-xs text-muted-foreground">
                         Documentos no sistema
                       </p>
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card className="border-l-4 border-l-yellow-500">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">
                         Documentos Não Visualizados
@@ -230,22 +292,22 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card className="border-l-4 border-l-green-500">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">
                         Total de Clientes
                       </CardTitle>
-                      <Headset className="h-4 w-4 text-muted-foreground" />
+                      <Headset className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{analytics.totalClients}</div>
+                      <div className="text-2xl font-bold text-green-600">{analytics.totalClients}</div>
                       <p className="text-xs text-muted-foreground">
                         Clientes cadastrados
                       </p>
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card className="border-l-4 border-l-orange-500">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">
                         Clientes Inativos
@@ -258,20 +320,59 @@ export default function Dashboard() {
                         Sem acesso há +30 dias
                       </p>
                     </CardContent>
-                  </Card>
-                </>
-              )}
-            </div>
+                </Card>
+              </>
+            )}
+          </div>
 
-            {/* Atendimento Metrics Section */}
+          {/* Top Colaboradores Section */}
+          {topColaboradores.length > 0 && (
             <div>
-              <h3 className="text-2xl font-bold text-foreground mb-4">Métricas de Atendimento</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
+                <Trophy className="h-6 w-6 text-yellow-500" />
+                Colaboradores Mais Bem Avaliados
+              </h3>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    {topColaboradores.map((colab, index) => (
+                      <div key={colab.id} className="flex items-center gap-4 p-3 rounded-lg bg-accent/50">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
+                          {index + 1}
+                        </div>
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback>
+                            {colab.nome.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="font-semibold">{colab.nome}</p>
+                          <p className="text-sm text-muted-foreground">{colab.email}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                            <span className="font-bold text-lg">{colab.averageRating.toFixed(1)}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{colab.totalRatings} avaliações</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </>
-        )}
+          )}
 
-        {/* Atendimento Metrics */}
-        {(userRole === 'admin' || userRole === 'colaborador') && (
+          {/* Atendimento Metrics Section */}
+          <div>
+            <h3 className="text-2xl font-bold text-foreground mb-4">Métricas de Atendimento</h3>
+          </div>
+        </>
+      )}
+
+      {/* Atendimento Metrics */}
+      {(userRole === 'admin' || userRole === 'colaborador') && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {loadingAnalytics ? (
               <div className="col-span-full flex justify-center py-8">
@@ -279,7 +380,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
-                <Card>
+                <Card className="border-l-4 border-l-yellow-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Atendimentos Pendentes
@@ -294,22 +395,22 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-l-4 border-l-purple-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Total de Solicitações
                     </CardTitle>
-                    <Headset className="h-4 w-4 text-muted-foreground" />
+                    <Headset className="h-4 w-4 text-purple-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{analytics.totalRequests}</div>
+                    <div className="text-2xl font-bold text-purple-600">{analytics.totalRequests}</div>
                     <p className="text-xs text-muted-foreground">
                       Todas as solicitações registradas
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-l-4 border-l-blue-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Atendimentos Respondidos
@@ -324,7 +425,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-l-4 border-l-green-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Atendimentos Concluídos
@@ -339,60 +440,60 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-l-4 border-l-indigo-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Tempo Médio de Resposta
                     </CardTitle>
-                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                    <AlertCircle className="h-4 w-4 text-indigo-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-primary">{analytics.averageResponseTime}</div>
+                    <div className="text-2xl font-bold text-indigo-600">{analytics.averageResponseTime}</div>
                     <p className="text-xs text-muted-foreground">
                       Média entre solicitação e resposta
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-l-4 border-l-cyan-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Solicitações Hoje
                     </CardTitle>
-                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    <Eye className="h-4 w-4 text-cyan-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{analytics.todayRequests}</div>
+                    <div className="text-2xl font-bold text-cyan-600">{analytics.todayRequests}</div>
                     <p className="text-xs text-muted-foreground">
                       Abertas nas últimas 24 horas
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-l-4 border-l-sky-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Status: Aberto
                     </CardTitle>
-                    <AlertCircle className="h-4 w-4 text-blue-500" />
+                    <AlertCircle className="h-4 w-4 text-sky-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">{analytics.openRequests}</div>
+                    <div className="text-2xl font-bold text-sky-600">{analytics.openRequests}</div>
                     <p className="text-xs text-muted-foreground">
                       Aguardando início do atendimento
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-l-4 border-l-amber-500">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                       Status: Em Atendimento
                     </CardTitle>
-                    <Headset className="h-4 w-4 text-yellow-500" />
+                    <Headset className="h-4 w-4 text-amber-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-yellow-600">{analytics.inProgressRequests}</div>
+                    <div className="text-2xl font-bold text-amber-600">{analytics.inProgressRequests}</div>
                     <p className="text-xs text-muted-foreground">
                       Em processo de atendimento
                     </p>
