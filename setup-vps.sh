@@ -23,8 +23,12 @@ echo -e "${YELLOW}📦 Atualizando sistema...${NC}"
 apt update && apt upgrade -y
 
 echo -e "${YELLOW}📦 Instalando Node.js 20.x...${NC}"
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt install -y nodejs
+curl -fsSL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh
+bash nodesource_setup.sh
+apt-get install -y nodejs
+rm nodesource_setup.sh
+node --version
+npm --version
 
 echo -e "${YELLOW}📦 Instalando dependências...${NC}"
 apt install -y git nginx ufw fail2ban
