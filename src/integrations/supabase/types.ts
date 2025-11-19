@@ -122,6 +122,39 @@ export type Database = {
         }
         Relationships: []
       }
+      collaborator_permissions: {
+        Row: {
+          can_delete_clients: boolean
+          can_edit_client_situation: boolean
+          can_manage_requests: boolean
+          can_view_reports: boolean
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_delete_clients?: boolean
+          can_edit_client_situation?: boolean
+          can_manage_requests?: boolean
+          can_view_reports?: boolean
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_delete_clients?: boolean
+          can_edit_client_situation?: boolean
+          can_manage_requests?: boolean
+          can_view_reports?: boolean
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           client_id: string
