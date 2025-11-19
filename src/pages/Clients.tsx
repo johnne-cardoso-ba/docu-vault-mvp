@@ -32,6 +32,11 @@ import { ClientSheet } from '@/components/clients/ClientSheet';
 import { SociosForm } from '@/components/clients/SociosForm';
 import { useReactToPrint } from 'react-to-print';
 
+type Cnae = {
+  codigo: string;
+  descricao: string;
+};
+
 type Socio = {
   nome: string;
   capital: string;
@@ -51,6 +56,7 @@ type Client = {
   nome_socio?: string | null;
   data_nascimento?: string | null;
   socios?: any;
+  cnaes_secundarios?: any;
   juceb_nire?: string | null;
   juceb_protocolo?: string | null;
   juceb_data_registro?: string | null;
@@ -90,6 +96,9 @@ export default function Clients() {
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [newFieldName, setNewFieldName] = useState('');
   const [socios, setSocios] = useState<Socio[]>([]);
+  const [cnaes, setCnaes] = useState<Cnae[]>([]);
+  const [newCnaeCode, setNewCnaeCode] = useState('');
+  const [newCnaeDesc, setNewCnaeDesc] = useState('');
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [canEditSituation, setCanEditSituation] = useState(true);
   const printRef = useRef<HTMLDivElement>(null);
@@ -210,6 +219,7 @@ export default function Clients() {
         juceb_data_registro: formData.juceb_data_registro || null,
         campos_customizados: camposCustomizados,
         socios: socios,
+        cnaes_secundarios: cnaes,
       };
 
       if (editingClient) {
@@ -338,6 +348,13 @@ export default function Clients() {
       setSocios([]);
     }
     
+    // Carregar CNAEs secundários
+    if (client.cnaes_secundarios && Array.isArray(client.cnaes_secundarios)) {
+      setCnaes(client.cnaes_secundarios);
+    } else {
+      setCnaes([]);
+    }
+    
     setIsDialogOpen(true);
   };
 
@@ -353,6 +370,18 @@ export default function Clients() {
     const updated = [...socios];
     updated[index][field] = value as never;
     setSocios(updated);
+  };
+
+  const addCnae = () => {
+    if (newCnaeCode.trim() && newCnaeDesc.trim()) {
+      setCnaes([...cnaes, { codigo: newCnaeCode.trim(), descricao: newCnaeDesc.trim() }]);
+      setNewCnaeCode('');
+      setNewCnaeDesc('');
+    }
+  };
+
+  const removeCnae = (index: number) => {
+    setCnaes(cnaes.filter((_, i) => i !== index));
   };
 
   const addCustomField = () => {
@@ -409,13 +438,22 @@ export default function Clients() {
         codigo_simples: data.opcao_pelo_simples ? 'Sim' : prev.codigo_simples,
       }));
 
-      // Preencher sócios se houver
+      // CNAEs secundários
+      if (data.cnaes_secundarios && Array.isArray(data.cnaes_secundarios)) {
+        const cnaesFromAPI = data.cnaes_secundarios.map((cnae: any) => ({
+          codigo: cnae.codigo?.toString() || '',
+          descricao: cnae.descricao || ''
+        }));
+        setCnaes(cnaesFromAPI);
+      }
+
+      // Sócios
       if (data.qsa && Array.isArray(data.qsa) && data.qsa.length > 0) {
         const sociosData = data.qsa.slice(0, 5).map((s: any) => ({
           nome: s.nome_socio || s.nome_representante_legal || '',
-          cpf: '',
           capital: '',
           porcentagem: s.percentual_capital ? s.percentual_capital.toString() : '',
+          responsavel_legal: s.qualificacao_socio?.includes('Administrador') || false,
         }));
         setSocios(sociosData);
       }
@@ -454,10 +492,9 @@ export default function Clients() {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
                 <Tabs defaultValue="basico" className="flex flex-col flex-1 overflow-hidden">
-                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 gap-1 h-auto">
+                  <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-1 h-auto">
                     <TabsTrigger value="basico" className="text-xs lg:text-sm">Básico</TabsTrigger>
                     <TabsTrigger value="socios" className="text-xs lg:text-sm">Sócios</TabsTrigger>
-                    <TabsTrigger value="societario" className="text-xs lg:text-sm">Societário</TabsTrigger>
                     <TabsTrigger value="registros" className="text-xs lg:text-sm">Registros</TabsTrigger>
                     <TabsTrigger value="endereco" className="text-xs lg:text-sm">Endereço</TabsTrigger>
                     <TabsTrigger value="fiscal" className="text-xs lg:text-sm">Fiscal</TabsTrigger>
@@ -548,6 +585,66 @@ export default function Clients() {
                           </p>
                         )}
                       </div>
+                      
+                      <div className="col-span-2">
+                        <Label htmlFor="atividade_principal">Atividade Principal</Label>
+                        <Input
+                          id="atividade_principal"
+                          value={formData.atividade_principal}
+                          onChange={(e) => setFormData({ ...formData, atividade_principal: e.target.value })}
+                          placeholder="Atividade principal da empresa"
+                        />
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <Label className="text-base">CNAEs Secundários</Label>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Preenchidos automaticamente ao buscar CNPJ, ou adicione manualmente
+                        </p>
+                        <div className="space-y-2">
+                          {cnaes.length > 0 && (
+                            <div className="space-y-1 mb-3">
+                              {cnaes.map((cnae, index) => (
+                                <div key={index} className="flex items-center gap-2 p-2 bg-muted rounded">
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">{cnae.codigo}</p>
+                                    <p className="text-xs text-muted-foreground">{cnae.descricao}</p>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeCnae(index)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <Input
+                              placeholder="Código CNAE"
+                              value={newCnaeCode}
+                              onChange={(e) => setNewCnaeCode(e.target.value)}
+                            />
+                            <Input
+                              placeholder="Descrição"
+                              value={newCnaeDesc}
+                              onChange={(e) => setNewCnaeDesc(e.target.value)}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={addCnae}
+                              disabled={!newCnaeCode.trim() || !newCnaeDesc.trim()}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Adicionar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
 
@@ -559,44 +656,6 @@ export default function Clients() {
                         onRemove={removeSocio}
                         onUpdate={updateSocio}
                       />
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="societario" className="overflow-y-auto flex-1 pr-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                      <div className="col-span-2">
-                        <Label htmlFor="nome_socio">Nome do Sócio</Label>
-                        <Input
-                          id="nome_socio"
-                          value={formData.nome_socio}
-                          onChange={(e) => setFormData({ ...formData, nome_socio: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="data_nascimento">Data de Nascimento</Label>
-                        <Input
-                          id="data_nascimento"
-                          type="date"
-                          value={formData.data_nascimento}
-                          onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="responsavel_legal">Responsável Legal</Label>
-                        <Input
-                          id="responsavel_legal"
-                          value={formData.responsavel_legal}
-                          onChange={(e) => setFormData({ ...formData, responsavel_legal: e.target.value })}
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <Label htmlFor="atividade_principal">Atividade Principal</Label>
-                        <Input
-                          id="atividade_principal"
-                          value={formData.atividade_principal}
-                          onChange={(e) => setFormData({ ...formData, atividade_principal: e.target.value })}
-                        />
-                      </div>
                     </div>
                   </TabsContent>
 
