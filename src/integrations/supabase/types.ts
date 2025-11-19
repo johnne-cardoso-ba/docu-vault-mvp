@@ -133,6 +133,135 @@ export type Database = {
         }
         Relationships: []
       }
+      request_history: {
+        Row: {
+          changed_by: string
+          created_at: string
+          descricao: string | null
+          id: string
+          request_id: string
+          tipo_mudanca: string
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          changed_by: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          request_id: string
+          tipo_mudanca: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          changed_by?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          request_id?: string
+          tipo_mudanca?: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_request_history"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_messages: {
+        Row: {
+          conteudo: string | null
+          created_at: string
+          file_url: string | null
+          filename: string | null
+          id: string
+          request_id: string
+          tipo_mensagem: string
+          user_id: string
+        }
+        Insert: {
+          conteudo?: string | null
+          created_at?: string
+          file_url?: string | null
+          filename?: string | null
+          id?: string
+          request_id: string
+          tipo_mensagem: string
+          user_id: string
+        }
+        Update: {
+          conteudo?: string | null
+          created_at?: string
+          file_url?: string | null
+          filename?: string | null
+          id?: string
+          request_id?: string
+          tipo_mensagem?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_request"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requests: {
+        Row: {
+          assunto: string
+          atendente_id: string | null
+          client_id: string
+          created_at: string
+          descricao: string
+          id: string
+          protocol: string
+          setor: Database["public"]["Enums"]["setor_contabilidade"]
+          status: Database["public"]["Enums"]["status_solicitacao"]
+          updated_at: string
+        }
+        Insert: {
+          assunto: string
+          atendente_id?: string | null
+          client_id: string
+          created_at?: string
+          descricao: string
+          id?: string
+          protocol: string
+          setor: Database["public"]["Enums"]["setor_contabilidade"]
+          status?: Database["public"]["Enums"]["status_solicitacao"]
+          updated_at?: string
+        }
+        Update: {
+          assunto?: string
+          atendente_id?: string | null
+          client_id?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          protocol?: string
+          setor?: Database["public"]["Enums"]["setor_contabilidade"]
+          status?: Database["public"]["Enums"]["status_solicitacao"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_client"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -159,6 +288,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_protocol: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -169,6 +299,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "colaborador" | "cliente"
+      setor_contabilidade:
+        | "fiscal"
+        | "pessoal"
+        | "contabil"
+        | "controladoria"
+        | "procuradoria"
+      status_solicitacao: "aberto" | "em_atendimento" | "concluido"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -297,6 +434,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "colaborador", "cliente"],
+      setor_contabilidade: [
+        "fiscal",
+        "pessoal",
+        "contabil",
+        "controladoria",
+        "procuradoria",
+      ],
+      status_solicitacao: ["aberto", "em_atendimento", "concluido"],
     },
   },
 } as const
