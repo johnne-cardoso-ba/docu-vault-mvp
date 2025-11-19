@@ -3,10 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
-export function usePresence() {
+type OnlineNotification = {
+  user_id: string;
+  nome: string;
+  avatar_url?: string;
+};
+
+export function usePresence(onUserOnline?: (user: OnlineNotification) => void) {
   const { user } = useAuth();
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const [previousOnlineUsers, setPreviousOnlineUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -25,6 +32,7 @@ export function usePresence() {
       .on('presence', { event: 'sync' }, () => {
         const state = presenceChannel.presenceState();
         const userIds = new Set<string>();
+        const newUsers: OnlineNotification[] = [];
         
         Object.keys(state).forEach((key) => {
           const presences = state[key];
@@ -32,11 +40,26 @@ export function usePresence() {
             presences.forEach((presence: any) => {
               if (presence.user_id) {
                 userIds.add(presence.user_id);
+                
+                // Detectar novos usuários online
+                if (!previousOnlineUsers.has(presence.user_id) && presence.user_id !== user?.id) {
+                  newUsers.push({
+                    user_id: presence.user_id,
+                    nome: presence.nome,
+                    avatar_url: presence.avatar_url,
+                  });
+                }
               }
             });
           }
         });
         
+        // Notificar sobre novos usuários online
+        if (newUsers.length > 0 && onUserOnline) {
+          newUsers.forEach(newUser => onUserOnline(newUser));
+        }
+        
+        setPreviousOnlineUsers(userIds);
         setOnlineUsers(userIds);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
@@ -50,7 +73,7 @@ export function usePresence() {
           // Get user profile
           const { data: profile } = await supabase
             .from('profiles')
-            .select('nome')
+            .select('nome, avatar_url')
             .eq('id', user.id)
             .single();
 
@@ -58,6 +81,7 @@ export function usePresence() {
           await presenceChannel.track({
             user_id: user.id,
             nome: profile?.nome || 'Usuário',
+            avatar_url: profile?.avatar_url,
             online_at: new Date().toISOString(),
           });
         }

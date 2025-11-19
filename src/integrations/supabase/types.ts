@@ -108,6 +108,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           deve_trocar_senha: boolean | null
           email: string
@@ -117,6 +118,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           deve_trocar_senha?: boolean | null
           email: string
@@ -126,6 +128,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           deve_trocar_senha?: boolean | null
           email?: string
