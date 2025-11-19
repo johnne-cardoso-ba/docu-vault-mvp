@@ -187,6 +187,8 @@ export type Database = {
           file_url: string | null
           filename: string | null
           id: string
+          lida: boolean | null
+          lida_em: string | null
           request_id: string
           tipo_mensagem: string
           user_id: string
@@ -197,6 +199,8 @@ export type Database = {
           file_url?: string | null
           filename?: string | null
           id?: string
+          lida?: boolean | null
+          lida_em?: string | null
           request_id: string
           tipo_mensagem: string
           user_id: string
@@ -207,6 +211,8 @@ export type Database = {
           file_url?: string | null
           filename?: string | null
           id?: string
+          lida?: boolean | null
+          lida_em?: string | null
           request_id?: string
           tipo_mensagem?: string
           user_id?: string

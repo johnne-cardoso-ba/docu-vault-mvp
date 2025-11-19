@@ -38,29 +38,38 @@ export function NotificationBell() {
   
   // Configurar presença e detectar usuários online
   usePresence((onlineUser) => {
-    // Adicionar notificação de presença
-    const presenceNotification: Notification = {
-      id: `presence-${onlineUser.user_id}-${Date.now()}`,
-      request_id: '',
-      protocol: '',
-      assunto: `${onlineUser.nome} está online`,
-      tipo: 'usuario_online',
-      created_at: new Date().toISOString(),
-      lida: false,
-      user_nome: onlineUser.nome,
-      user_avatar: onlineUser.avatar_url,
-      user_id: onlineUser.user_id,
-    };
-    
-    setNotifications(prev => [presenceNotification, ...prev]);
-    setUnreadCount(prev => prev + 1);
-    playNotificationSound();
-    
-    // Toast para notificação mais visível
-    toast({
-      title: '👤 Colaborador online',
-      description: `${onlineUser.nome} acabou de ficar online`,
-    });
+    // Verificar se é colaborador/admin antes de notificar
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', onlineUser.user_id)
+      .single()
+      .then(({ data }) => {
+        // Só notificar se for colaborador ou admin (não notificar clientes)
+        if (data && (data.role === 'colaborador' || data.role === 'admin')) {
+          const presenceNotification: Notification = {
+            id: `presence-${onlineUser.user_id}-${Date.now()}`,
+            request_id: '',
+            protocol: '',
+            assunto: `${onlineUser.nome} está online`,
+            tipo: 'usuario_online',
+            created_at: new Date().toISOString(),
+            lida: false,
+            user_nome: onlineUser.nome,
+            user_avatar: onlineUser.avatar_url,
+            user_id: onlineUser.user_id,
+          };
+          
+          setNotifications(prev => [presenceNotification, ...prev]);
+          setUnreadCount(prev => prev + 1);
+          playNotificationSound();
+          
+          toast({
+            title: '👤 Colaborador online',
+            description: `${onlineUser.nome} acabou de ficar online`,
+          });
+        }
+      });
   });
   
   const [audio] = useState(() => {
