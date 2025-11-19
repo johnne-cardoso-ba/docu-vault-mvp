@@ -119,10 +119,16 @@ export function NotificationBell() {
 
       if (!requests) return;
 
-      // Simular notificações (em produção, você criaria uma tabela de notificações)
-      const notifications: Notification[] = requests
-        .filter(r => r.updated_at > new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .map(r => ({
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const filteredRequests = (requests as any[]).filter((r) => {
+        const isRecent = r.updated_at > twentyFourHoursAgo;
+        const isResponseForClient = userRole === 'cliente' ? r.status !== 'aberto' : true;
+        return isRecent && isResponseForClient;
+      });
+
+      const notifications: Notification[] = filteredRequests
+        .map((r) => ({
           id: r.id,
           request_id: r.id,
           protocol: r.protocol,
