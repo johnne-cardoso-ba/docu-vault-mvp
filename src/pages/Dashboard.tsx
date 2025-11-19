@@ -50,11 +50,23 @@ export default function Dashboard() {
   });
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const [topColaboradores, setTopColaboradores] = useState<TopColaborador[]>([]);
+  const [myRatings, setMyRatings] = useState<{
+    averageRating: number;
+    totalRatings: number;
+    rating5: number;
+    rating4: number;
+    rating3: number;
+    rating2: number;
+    rating1: number;
+  } | null>(null);
 
   useEffect(() => {
     if (userRole === 'admin' || userRole === 'colaborador') {
       fetchAnalytics();
       fetchTopColaboradores();
+      if (userRole === 'colaborador') {
+        fetchMyRatings();
+      }
     } else {
       setLoadingAnalytics(false);
     }
@@ -238,6 +250,37 @@ export default function Dashboard() {
       console.error('Error fetching analytics:', error);
     } finally {
       setLoadingAnalytics(false);
+    }
+  };
+
+  const fetchMyRatings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: ratings, error } = await supabase
+        .from('request_ratings')
+        .select('rating')
+        .eq('atendente_id', user.id);
+
+      if (error) throw error;
+
+      if (ratings && ratings.length > 0) {
+        const totalRatings = ratings.length;
+        const averageRating = ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings;
+        
+        setMyRatings({
+          averageRating,
+          totalRatings,
+          rating5: ratings.filter(r => r.rating === 5).length,
+          rating4: ratings.filter(r => r.rating === 4).length,
+          rating3: ratings.filter(r => r.rating === 3).length,
+          rating2: ratings.filter(r => r.rating === 2).length,
+          rating1: ratings.filter(r => r.rating === 1).length,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar minhas avaliações:', error);
     }
   };
 
@@ -545,6 +588,63 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground">
                       Em processo de atendimento
                     </p>
+                  </CardContent>
+                </Card>
+
+                {/* Card de Avaliação do Colaborador */}
+                <Card className="md:col-span-2 border-l-4 border-l-yellow-500">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Minha Avaliação</CardTitle>
+                    <Star className="h-4 w-4 text-yellow-500" />
+                  </CardHeader>
+                  <CardContent>
+                    {!myRatings ? (
+                      <p className="text-sm text-muted-foreground">Nenhuma avaliação ainda</p>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <div>
+                            <div className="text-3xl font-bold text-yellow-600">{myRatings.averageRating.toFixed(1)}</div>
+                            <div className="flex gap-1 mt-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`h-4 w-4 ${
+                                    star <= Math.round(myRatings.averageRating)
+                                      ? 'fill-yellow-500 text-yellow-500'
+                                      : 'text-muted'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Baseado em {myRatings.totalRatings} avaliações
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-5 gap-2 text-xs">
+                          {[5, 4, 3, 2, 1].map(rating => {
+                            const count = myRatings[`rating${rating}` as keyof typeof myRatings] as number;
+                            const percentage = (count / myRatings.totalRatings) * 100;
+                            return (
+                              <div key={rating} className="text-center">
+                                <div className="flex items-center justify-center gap-1 mb-1">
+                                  <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                                  <span className="text-muted-foreground">{rating}</span>
+                                </div>
+                                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-yellow-500"
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
+                                <span className="text-muted-foreground">{count}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </>
