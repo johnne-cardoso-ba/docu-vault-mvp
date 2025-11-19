@@ -98,7 +98,7 @@ export function usePresence(onUserOnline?: (user: OnlineNotification) => void) {
     return () => {
       presenceChannel.unsubscribe();
     };
-  }, [user, hasNotifiedInitialUsers, previousOnlineUsers, onUserOnline]);
+  }, [user]);
 
   return { onlineUsers, channel };
 }
