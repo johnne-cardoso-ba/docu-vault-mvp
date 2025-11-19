@@ -309,8 +309,15 @@ export default function Dashboard() {
 
   const fetchClientDashboardData = async () => {
     try {
+      setLoadingClientData(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('Cliente: Usuário não autenticado');
+        setLoadingClientData(false);
+        return;
+      }
+
+      console.log('Cliente: Buscando dados para user:', user.id);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -318,13 +325,24 @@ export default function Dashboard() {
         .eq('id', user.id)
         .single();
 
+      console.log('Cliente: Profile encontrado:', profile);
+
+      if (!profile) {
+        console.log('Cliente: Profile não encontrado');
+        setLoadingClientData(false);
+        return;
+      }
+
       const { data: client } = await supabase
         .from('clients')
         .select('id')
-        .eq('email', profile?.email || '')
+        .eq('email', profile.email)
         .maybeSingle();
 
+      console.log('Cliente: Client encontrado:', client);
+
       if (!client) {
+        console.log('Cliente: Client não encontrado para email:', profile.email);
         setLoadingClientData(false);
         return;
       }
@@ -356,9 +374,45 @@ export default function Dashboard() {
 
       const totalValue = upcomingDocs?.reduce((sum, doc) => sum + (doc.valor_guia || 0), 0) || 0;
 
-      setClientData({
-        name: profile?.nome || 'Cliente',
-        email: profile?.email || '',
+      // Buscar atividades recentes
+      const { data: recentDocs } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const { data: recentRequests } = await supabase
+        .from('requests')
+        .select('*, profiles!requests_client_id_fkey(nome)')
+        .eq('client_id', client.id)
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      const activities = [
+        ...(recentDocs || []).map(doc => ({
+          id: doc.id,
+          type: 'document' as const,
+          title: 'Novo documento recebido',
+          description: doc.filename,
+          date: doc.created_at,
+          status: doc.data_leitura ? 'success' as const : 'pending' as const,
+        })),
+        ...(recentRequests || []).map(req => ({
+          id: req.id,
+          type: 'request' as const,
+          title: `Solicitação #${req.protocol}`,
+          description: req.assunto,
+          date: req.updated_at,
+          status: req.status === 'concluido' ? 'success' as const : 'pending' as const,
+        })),
+      ]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10);
+
+      const data = {
+        name: profile.nome || 'Cliente',
+        email: profile.email || '',
         documentsReceived: docsReceived || 0,
         unreadDocuments: unreadDocs || 0,
         dueSoonCount: dueSoon || 0,
@@ -372,8 +426,11 @@ export default function Dashboard() {
           amount: doc.valor_guia,
           type: 'GUIA',
         })),
-        recentActivities: [],
-      });
+        recentActivities: activities,
+      };
+
+      console.log('Cliente: Dados carregados com sucesso:', data);
+      setClientData(data);
     } catch (error) {
       console.error('Erro ao carregar dados do cliente:', error);
     } finally {
