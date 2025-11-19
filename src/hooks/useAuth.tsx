@@ -113,7 +113,7 @@ export function useAuth() {
 
         // Redirect based on role
         if (role === 'cliente') {
-          navigate('/documentos');
+          navigate('/dashboard');
         } else {
           navigate('/dashboard');
         }
