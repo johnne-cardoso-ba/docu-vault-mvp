@@ -36,10 +36,10 @@ git fetch origin
 git reset --hard origin/main
 
 echo -e "${YELLOW}📦 Instalando dependências...${NC}"
-su - $APP_USER -c "cd $APP_DIR && npm install"
+sudo -u $APP_USER bash -c "cd $APP_DIR && npm install"
 
 echo -e "${YELLOW}🔨 Fazendo build...${NC}"
-su - $APP_USER -c "cd $APP_DIR && npm run build"
+sudo -u $APP_USER bash -c "cd $APP_DIR && npm run build"
 
 # Verificar se o build foi bem-sucedido
 if [ ! -d "$APP_DIR/dist" ]; then
