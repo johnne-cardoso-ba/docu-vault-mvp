@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { Plus, Edit, Loader2, KeyRound, X, Printer, FileText, Search } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
@@ -77,6 +78,7 @@ type Client = {
   responsavel_legal?: string | null;
   campos_customizados?: any;
   user_id?: string;
+  tem_acesso_nfse?: boolean;
 };
 
 type CustomField = {
@@ -116,6 +118,7 @@ export default function Clients() {
     juceb_protocolo: '',
     juceb_data_registro: '',
     numero_iptu: '',
+    tem_acesso_nfse: false,
     numero_titulo: '',
     codigo_simples: '',
     inscricao_estadual: '',
@@ -296,6 +299,7 @@ export default function Clients() {
       atividade_principal: '',
       regime_tributario: '',
       responsavel_legal: '',
+      tem_acesso_nfse: false,
     });
     setEditingClient(null);
     setCustomFields([]);
@@ -331,6 +335,7 @@ export default function Clients() {
       atividade_principal: client.atividade_principal || '',
       regime_tributario: client.regime_tributario || '',
       responsavel_legal: client.responsavel_legal || '',
+      tem_acesso_nfse: client.tem_acesso_nfse || false,
     });
     
     if (client.campos_customizados) {
@@ -585,6 +590,24 @@ export default function Clients() {
                           </p>
                         )}
                       </div>
+                      
+                      {userRole === 'admin' && (
+                        <div className="col-span-2 flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border">
+                          <div className="space-y-0.5">
+                            <Label htmlFor="tem_acesso_nfse" className="text-base font-medium">
+                              Acesso ao Módulo NFS-e
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              Liberar acesso para emissão de notas fiscais eletrônicas de serviço
+                            </p>
+                          </div>
+                          <Switch
+                            id="tem_acesso_nfse"
+                            checked={formData.tem_acesso_nfse}
+                            onCheckedChange={(checked) => setFormData({ ...formData, tem_acesso_nfse: checked })}
+                          />
+                        </div>
+                      )}
                       
                       <div className="col-span-2">
                         <Label htmlFor="atividade_principal">Atividade Principal</Label>
@@ -893,6 +916,7 @@ export default function Clients() {
                   <TableHead>Email</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Situação</TableHead>
+                  {userRole === 'admin' && <TableHead className="text-center">NFS-e</TableHead>}
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -933,6 +957,35 @@ export default function Clients() {
                           {client.situacao}
                         </span>
                       </TableCell>
+                      {userRole === 'admin' && (
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={client.tem_acesso_nfse || false}
+                            onCheckedChange={async (checked) => {
+                              try {
+                                const { error } = await supabase
+                                  .from('clients')
+                                  .update({ tem_acesso_nfse: checked })
+                                  .eq('id', client.id);
+                                
+                                if (error) throw error;
+                                
+                                fetchClients();
+                                toast({
+                                  title: checked ? 'NFS-e ativada' : 'NFS-e desativada',
+                                  description: `Acesso ao módulo NFS-e ${checked ? 'liberado' : 'removido'} para ${client.nome_razao_social}`,
+                                });
+                              } catch (error: any) {
+                                toast({
+                                  title: 'Erro ao atualizar',
+                                  description: error.message,
+                                  variant: 'destructive',
+                                });
+                              }
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <TooltipProvider>

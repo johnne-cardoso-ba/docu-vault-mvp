@@ -49,6 +49,7 @@ export type Database = {
           situacao: string
           socios: Json | null
           telefone: string | null
+          tem_acesso_nfse: boolean
           updated_at: string
         }
         Insert: {
@@ -85,6 +86,7 @@ export type Database = {
           situacao?: string
           socios?: Json | null
           telefone?: string | null
+          tem_acesso_nfse?: boolean
           updated_at?: string
         }
         Update: {
@@ -121,6 +123,7 @@ export type Database = {
           situacao?: string
           socios?: Json | null
           telefone?: string | null
+          tem_acesso_nfse?: boolean
           updated_at?: string
         }
         Relationships: []
