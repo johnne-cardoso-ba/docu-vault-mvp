@@ -16,34 +16,103 @@ export type Database = {
     Tables: {
       clients: {
         Row: {
+          atividade_principal: string | null
+          bairro: string | null
+          campos_customizados: Json | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string | null
           cnpj_cpf: string
+          codigo_simples: string | null
+          complemento: string | null
+          cpf: string | null
           created_at: string
           created_by: string | null
+          data_nascimento: string | null
           email: string
+          estado: string | null
           id: string
+          inscricao_estadual: string | null
+          inscricao_municipal: string | null
+          juceb_data_registro: string | null
+          juceb_nire: string | null
+          juceb_protocolo: string | null
+          logradouro: string | null
           nome_razao_social: string
+          nome_socio: string | null
+          numero: string | null
+          numero_iptu: string | null
+          numero_titulo: string | null
+          regime_tributario: string | null
+          responsavel_legal: string | null
           situacao: string
           telefone: string | null
           updated_at: string
         }
         Insert: {
+          atividade_principal?: string | null
+          bairro?: string | null
+          campos_customizados?: Json | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
           cnpj_cpf: string
+          codigo_simples?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
           created_by?: string | null
+          data_nascimento?: string | null
           email: string
+          estado?: string | null
           id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          juceb_data_registro?: string | null
+          juceb_nire?: string | null
+          juceb_protocolo?: string | null
+          logradouro?: string | null
           nome_razao_social: string
+          nome_socio?: string | null
+          numero?: string | null
+          numero_iptu?: string | null
+          numero_titulo?: string | null
+          regime_tributario?: string | null
+          responsavel_legal?: string | null
           situacao?: string
           telefone?: string | null
           updated_at?: string
         }
         Update: {
+          atividade_principal?: string | null
+          bairro?: string | null
+          campos_customizados?: Json | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
           cnpj_cpf?: string
+          codigo_simples?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
           created_by?: string | null
+          data_nascimento?: string | null
           email?: string
+          estado?: string | null
           id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          juceb_data_registro?: string | null
+          juceb_nire?: string | null
+          juceb_protocolo?: string | null
+          logradouro?: string | null
           nome_razao_social?: string
+          nome_socio?: string | null
+          numero?: string | null
+          numero_iptu?: string | null
+          numero_titulo?: string | null
+          regime_tributario?: string | null
+          responsavel_legal?: string | null
           situacao?: string
           telefone?: string | null
           updated_at?: string
