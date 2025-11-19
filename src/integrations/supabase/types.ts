@@ -21,6 +21,7 @@ export type Database = {
           campos_customizados: Json | null
           cep: string | null
           cidade: string | null
+          cnaes_secundarios: Json | null
           cnpj: string | null
           cnpj_cpf: string
           codigo_simples: string | null
@@ -56,6 +57,7 @@ export type Database = {
           campos_customizados?: Json | null
           cep?: string | null
           cidade?: string | null
+          cnaes_secundarios?: Json | null
           cnpj?: string | null
           cnpj_cpf: string
           codigo_simples?: string | null
@@ -91,6 +93,7 @@ export type Database = {
           campos_customizados?: Json | null
           cep?: string | null
           cidade?: string | null
+          cnaes_secundarios?: Json | null
           cnpj?: string | null
           cnpj_cpf?: string
           codigo_simples?: string | null

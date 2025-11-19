@@ -104,7 +104,7 @@ export function SociosForm({ socios, onAdd, onRemove, onUpdate }: SociosFormProp
                 <div className="col-span-2 flex items-center space-x-2">
                   <Checkbox
                     id={`socio-responsavel-${index}`}
-                    checked={socio.responsavel_legal}
+                    checked={socio.responsavel_legal || false}
                     onCheckedChange={(checked) => onUpdate(index, 'responsavel_legal', checked as boolean)}
                   />
                   <Label htmlFor={`socio-responsavel-${index}`} className="cursor-pointer">
