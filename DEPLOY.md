@@ -23,8 +23,12 @@ ssh root@seu-ip-da-vps
 apt update && apt upgrade -y
 
 # Instalar Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt install -y nodejs
+curl -fsSL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh
+bash nodesource_setup.sh
+apt-get install -y nodejs
+rm nodesource_setup.sh
+node --version
+npm --version
 
 # Instalar Git
 apt install -y git
