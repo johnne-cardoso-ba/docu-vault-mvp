@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { InternalRequestsList } from '@/components/requests/InternalRequestsList';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,8 @@ import { NewRequestDialog } from '@/components/requests/NewRequestDialog';
 
 export default function InternalRequests() {
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
+  const location = useLocation();
+  const openRequestId = (location.state as any)?.openRequestId;
 
   return (
     <AppLayout>
@@ -22,7 +25,7 @@ export default function InternalRequests() {
           </Button>
         </div>
 
-        <InternalRequestsList />
+        <InternalRequestsList openRequestId={openRequestId} />
 
         <NewRequestDialog 
           open={isNewRequestOpen} 

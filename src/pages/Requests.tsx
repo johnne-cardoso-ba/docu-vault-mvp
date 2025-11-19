@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -9,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 export default function Requests() {
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
   const { userRole } = useAuth();
+  const location = useLocation();
+  const openRequestId = (location.state as any)?.openRequestId;
 
   return (
     <AppLayout>
@@ -26,7 +29,7 @@ export default function Requests() {
           )}
         </div>
 
-        <RequestsList />
+        <RequestsList openRequestId={openRequestId} />
 
         <NewRequestDialog 
           open={isNewRequestOpen} 
