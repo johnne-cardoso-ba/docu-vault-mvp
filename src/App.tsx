@@ -13,6 +13,7 @@ import Reports from "./pages/Reports";
 import NFSe from "./pages/NFSe";
 import NFSeConfig from "./pages/NFSeConfig";
 import ClientNFSe from "./pages/ClientNFSe";
+import ClientNFSeConfig from "./pages/ClientNFSeConfig";
 import UploadDocument from "./pages/UploadDocument";
 import Documents from "./pages/Documents";
 import Requests from "./pages/Requests";
@@ -131,6 +132,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['cliente']}>
                 <ClientNFSe />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/nfse/cliente/config" 
+            element={
+              <ProtectedRoute allowedRoles={['cliente']}>
+                <ClientNFSeConfig />
               </ProtectedRoute>
             } 
           />

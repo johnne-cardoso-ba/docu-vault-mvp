@@ -47,7 +47,10 @@ export function AppSidebar() {
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Documentos', url: '/documentos', icon: FileText },
     { title: 'Solicitações', url: '/solicitacoes', icon: MessageSquare },
-    ...(hasNFSeAccess ? [{ title: 'NFS-e', url: '/nfse/cliente', icon: Receipt }] : []),
+    ...(hasNFSeAccess ? [
+      { title: 'Minhas NFS-e', url: '/nfse/cliente', icon: Receipt },
+      { title: 'Configurar NFS-e', url: '/nfse/cliente/config', icon: Settings }
+    ] : []),
   ];
 
   const items = 

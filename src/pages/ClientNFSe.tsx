@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,11 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, FileText, Download, Search, Calendar } from "lucide-react";
+import { Loader2, FileText, Download, Search, Calendar, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function ClientNFSe() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [notas, setNotas] = useState<any[]>([]);
   const [filteredNotas, setFilteredNotas] = useState<any[]>([]);
@@ -114,11 +116,20 @@ export default function ClientNFSe() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Minhas NFS-e</h2>
-          <p className="text-muted-foreground mt-2">
-            Visualize suas notas fiscais de serviço eletrônicas
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">Minhas NFS-e</h2>
+            <p className="text-muted-foreground mt-2">
+              Visualize suas notas fiscais de serviço eletrônicas
+            </p>
+          </div>
+          <Button 
+            onClick={() => navigate("/nfse/cliente/config")}
+            variant="outline"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Configurar NFS-e
+          </Button>
         </div>
 
         <Card>
