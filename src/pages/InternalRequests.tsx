@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { InternalRequestsList } from '@/components/requests/InternalRequestsList';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { NewRequestDialog } from '@/components/requests/NewRequestDialog';
+import { NewInternalRequestDialog } from '@/components/requests/NewInternalRequestDialog';
 
 export default function InternalRequests() {
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
@@ -27,7 +27,7 @@ export default function InternalRequests() {
 
         <InternalRequestsList openRequestId={openRequestId} />
 
-        <NewRequestDialog 
+        <NewInternalRequestDialog 
           open={isNewRequestOpen} 
           onOpenChange={setIsNewRequestOpen}
         />
