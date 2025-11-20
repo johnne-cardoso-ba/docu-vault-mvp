@@ -6,11 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Search, Calendar, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { NFSeConfigCard } from "@/components/nfse/NFSeConfigCard";
 
 export default function NFSe() {
   const navigate = useNavigate();
@@ -20,14 +22,22 @@ export default function NFSe() {
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [configs, setConfigs] = useState<any[]>([]);
+  const [filteredConfigs, setFilteredConfigs] = useState<any[]>([]);
+  const [configSearchTerm, setConfigSearchTerm] = useState("");
 
   useEffect(() => {
     loadNotas();
+    loadConfigs();
   }, []);
 
   useEffect(() => {
     filterNotas();
   }, [searchTerm, startDate, endDate, notas]);
+
+  useEffect(() => {
+    filterConfigs();
+  }, [configSearchTerm, configs]);
 
   const loadNotas = async () => {
     try {
@@ -51,6 +61,42 @@ export default function NFSe() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadConfigs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("nfse_config")
+        .select(`
+          *,
+          clients:client_id (
+            nome_razao_social,
+            cnpj_cpf
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setConfigs(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar configurações:", error);
+      toast.error("Erro ao carregar configurações de NFS-e");
+    }
+  };
+
+  const filterConfigs = () => {
+    if (!configSearchTerm) {
+      setFilteredConfigs(configs);
+      return;
+    }
+
+    const term = configSearchTerm.toLowerCase();
+    const filtered = configs.filter(
+      (config) =>
+        config.clients?.nome_razao_social?.toLowerCase().includes(term) ||
+        config.inscricao_municipal?.toLowerCase().includes(term)
+    );
+    setFilteredConfigs(filtered);
   };
 
   const filterNotas = () => {
@@ -105,18 +151,20 @@ export default function NFSe() {
   return (
     <AppLayout>
       <div className="container mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-3xl font-bold text-foreground">NFS-e - Todas as Notas</h2>
-            <p className="text-muted-foreground mt-2">
-              Visualize e gerencie todas as notas fiscais emitidas pelos clientes
-            </p>
-          </div>
-          <Button onClick={() => navigate("/nfse/admin/configs")} variant="outline">
-            <Settings className="h-4 w-4 mr-2" />
-            Gerenciar Configurações
-          </Button>
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-foreground">NFS-e</h2>
+          <p className="text-muted-foreground mt-2">
+            Visualize e gerencie todas as notas fiscais e configurações dos clientes
+          </p>
         </div>
+
+        <Tabs defaultValue="notas" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="notas">Todas as Notas</TabsTrigger>
+            <TabsTrigger value="configuracoes">Configurações de Clientes</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="notas" className="space-y-6 mt-6">
 
         <Card className="mb-6">
           <CardHeader>
@@ -235,6 +283,53 @@ export default function NFSe() {
             </CardContent>
           </Card>
         )}
+          </TabsContent>
+
+          <TabsContent value="configuracoes" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Configurações de NFS-e dos Clientes</CardTitle>
+                <CardDescription>
+                  Gerencie as configurações de emissão de NFS-e para cada cliente
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por cliente ou inscrição municipal..."
+                      value={configSearchTerm}
+                      onChange={(e) => setConfigSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {filteredConfigs.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Nenhuma configuração encontrada
+                    </div>
+                  ) : (
+                    filteredConfigs.map((config) => (
+                      <NFSeConfigCard
+                        key={config.id}
+                        config={config}
+                        clientName={config.clients?.nome_razao_social || "Cliente não identificado"}
+                        isAdmin={true}
+                        onView={() => {}}
+                        onEdit={() => navigate(`/nfse/cliente/config`)}
+                        onViewXML={() => {}}
+                        onDownloadPDF={() => {}}
+                      />
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
