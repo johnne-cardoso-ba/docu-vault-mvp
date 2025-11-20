@@ -1,25 +1,51 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useReactToPrint } from "react-to-print";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, FileText, Download, Search, Calendar, Settings } from "lucide-react";
+import { Loader2, FileText, Download, Search, Calendar, Settings, Printer } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { NFSePrintView } from "@/components/nfse/NFSePrintView";
 
 export default function ClientNFSe() {
   const navigate = useNavigate();
+  const printRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [notas, setNotas] = useState<any[]>([]);
   const [filteredNotas, setFilteredNotas] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedNota, setSelectedNota] = useState<any>(null);
+  const [prestadorData, setPrestadorData] = useState<any>(null);
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `NFS-e-${selectedNota?.numero_nota || selectedNota?.numero_rps}`,
+  });
+
+  const openPrintDialog = async (nota: any) => {
+    setSelectedNota(nota);
+    // Buscar dados do prestador
+    if (nota.client_id) {
+      const { data } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", nota.client_id)
+        .single();
+      setPrestadorData(data);
+    }
+    setPrintDialogOpen(true);
+  };
 
   useEffect(() => {
     loadNotas();
@@ -235,6 +261,14 @@ export default function ClientNFSe() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openPrintDialog(nota)}
+                                title="Imprimir NFS-e"
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
                               {nota.link_nfse && (
                                 <Button
                                   variant="ghost"
@@ -259,14 +293,34 @@ export default function ClientNFSe() {
                           </TableCell>
                         </TableRow>
                       ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </AppLayout>
-  );
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+
+    <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Imprimir NFS-e</DialogTitle>
+        </DialogHeader>
+        <div ref={printRef}>
+          {selectedNota && <NFSePrintView nota={selectedNota} prestador={prestadorData} />}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
+            Fechar
+          </Button>
+          <Button onClick={() => handlePrint()}>
+            <Printer className="h-4 w-4 mr-2" />
+            Imprimir
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </AppLayout>
+);
 }
