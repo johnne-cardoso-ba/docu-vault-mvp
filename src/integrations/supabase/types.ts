@@ -222,6 +222,7 @@ export type Database = {
           aliquota_iss: number
           ambiente: string
           certificado_a1: string
+          client_id: string | null
           cnae_fiscal: string
           codigo_tributacao_municipio: string
           created_at: string
@@ -236,6 +237,7 @@ export type Database = {
           aliquota_iss?: number
           ambiente?: string
           certificado_a1: string
+          client_id?: string | null
           cnae_fiscal: string
           codigo_tributacao_municipio: string
           created_at?: string
@@ -250,6 +252,7 @@ export type Database = {
           aliquota_iss?: number
           ambiente?: string
           certificado_a1?: string
+          client_id?: string | null
           cnae_fiscal?: string
           codigo_tributacao_municipio?: string
           created_at?: string
@@ -260,7 +263,15 @@ export type Database = {
           senha_certificado?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nfse_config_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nfse_emitidas: {
         Row: {
