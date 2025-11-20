@@ -24,10 +24,10 @@ const statusLabels: Record<string, string> = {
   concluido: 'Concluído',
 };
 
-const statusColors: Record<string, string> = {
-  aberto: 'bg-blue-500',
-  em_atendimento: 'bg-yellow-500',
-  concluido: 'bg-green-500',
+const statusVariants: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  aberto: 'default',
+  em_atendimento: 'secondary',
+  concluido: 'outline',
 };
 
 export function InternalRequestsList({ openRequestId }: { openRequestId?: string }) {
@@ -141,39 +141,39 @@ export function InternalRequestsList({ openRequestId }: { openRequestId?: string
 
   const RequestCard = ({ request }: { request: any }) => (
     <Card
-      className="p-4 hover:bg-accent cursor-pointer transition-colors"
+      className="p-6 hover:shadow-md cursor-pointer transition-all border-l-4 border-l-primary/20 hover:border-l-primary"
       onClick={() => setSelectedRequest(request)}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 space-y-2">
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono font-semibold text-primary">
+            <span className="font-mono text-lg font-bold text-foreground">
               #{request.protocol}
             </span>
-            <Badge className={statusColors[request.status]}>
+            <Badge variant={statusVariants[request.status]} className="font-medium">
               {statusLabels[request.status]}
             </Badge>
-            <Badge variant="outline">
-              <Building className="mr-1 h-3 w-3" />
+            <Badge variant="secondary" className="gap-1">
+              <Building className="h-3 w-3" />
               {setoresLabels[request.setor]}
             </Badge>
           </div>
-          
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <User className="h-4 w-4" />
-            <span>{request.clients?.nome_razao_social}</span>
-          </div>
-          
-          <h3 className="font-semibold text-foreground">{request.assunto}</h3>
-          
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {request.descricao}
-          </p>
-          
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Calendar className="h-3 w-3" />
-            {format(new Date(request.created_at), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
-          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <User className="h-4 w-4 text-primary" />
+          <span>{request.clients?.nome_razao_social}</span>
+        </div>
+        
+        <h3 className="text-lg font-semibold text-foreground leading-tight">{request.assunto}</h3>
+        
+        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+          {request.descricao}
+        </p>
+        
+        <div className="flex items-center gap-2 pt-2 border-t text-sm text-muted-foreground">
+          <Calendar className="h-4 w-4 text-primary" />
+          <span>{format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
         </div>
       </div>
     </Card>
