@@ -7,11 +7,9 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Collaborators from "./pages/Collaborators";
-import CollaboratorSettings from "./pages/CollaboratorSettings";
 import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
 import NFSe from "./pages/NFSe";
-import AdminNFSeConfigs from "./pages/AdminNFSeConfigs";
 import ClientNFSe from "./pages/ClientNFSe";
 import ClientNFSeConfig from "./pages/ClientNFSeConfig";
 import UploadDocument from "./pages/UploadDocument";
@@ -52,14 +50,6 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <Collaborators />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/configuracoes-colaboradores" 
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <CollaboratorSettings />
               </ProtectedRoute>
             } 
           />
@@ -120,14 +110,6 @@ const App = () => (
             } 
           />
           <Route 
-            path="/nfse/admin/configs" 
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'colaborador']}>
-                <AdminNFSeConfigs />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
             path="/nfse/cliente" 
             element={
               <ProtectedRoute allowedRoles={['cliente']}>
@@ -140,14 +122,6 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['cliente']}>
                 <ClientNFSeConfig />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/nfse/admin/configs" 
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'colaborador']}>
-                <AdminNFSeConfigs />
               </ProtectedRoute>
             } 
           />

@@ -27,9 +27,7 @@ export function AppSidebar() {
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Clientes', url: '/clientes', icon: Users },
     { title: 'Colaboradores', url: '/colaboradores', icon: UserCog },
-    { title: 'Configurações', url: '/configuracoes-colaboradores', icon: Settings },
     { title: 'Atendimento', url: '/solicitacoes-internas', icon: Headset },
-    { title: 'Enviar Documento', url: '/enviar-documento', icon: Upload },
     { title: 'Documentos', url: '/documentos', icon: FileText },
     { title: 'NFS-e', url: '/nfse', icon: Receipt },
     { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },
@@ -39,8 +37,8 @@ export function AppSidebar() {
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Clientes', url: '/clientes', icon: Users },
     { title: 'Atendimento', url: '/solicitacoes-internas', icon: Headset },
-    { title: 'Enviar Documento', url: '/enviar-documento', icon: Upload },
     { title: 'Documentos', url: '/documentos', icon: FileText },
+    { title: 'NFS-e', url: '/nfse', icon: Receipt },
   ];
 
   const clienteItems = [
