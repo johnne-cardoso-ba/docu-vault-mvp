@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User, ArrowRightLeft, Star, Trash2, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, Loader2, Download, Building, Calendar, User, ArrowRightLeft, Star, Trash2, CheckCheck, X, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TransferRequestDialog } from './TransferRequestDialog';
@@ -37,10 +37,10 @@ const statusLabels: Record<string, string> = {
   concluido: 'Concluído',
 };
 
-const statusColors: Record<string, string> = {
-  aberto: 'bg-blue-500',
-  em_atendimento: 'bg-yellow-500',
-  concluido: 'bg-green-500',
+const statusVariants: Record<string, 'default' | 'secondary' | 'outline'> = {
+  aberto: 'default',
+  em_atendimento: 'secondary',
+  concluido: 'outline',
 };
 
 export function RequestChat({ request, onBack, isInternal = false }: RequestChatProps) {
@@ -70,403 +70,119 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
     scrollToBottom();
     markMessagesAsRead();
 
-    // Setup realtime subscription
     const channel = supabase
       .channel(`request_messages_${request.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'request_messages',
-          filter: `request_id=eq.${request.id}`,
-        },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'request_messages', filter: `request_id=eq.${request.id}` }, 
         async (payload) => {
-          console.log('📨 Nova mensagem recebida via realtime:', payload);
-          
-          // Buscar perfil do usuário que enviou a mensagem
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, nome, avatar_url')
-            .eq('id', (payload.new as any).user_id)
-            .single();
+          const { data: profile } = await supabase.from('profiles').select('id, nome, avatar_url').eq('id', (payload.new as any).user_id).single();
+          const newMessage: any = { ...payload.new, profiles: profile || null };
+          setMessages((current) => current.some(msg => msg.id === newMessage.id) ? current : [...current, newMessage]);
+          if ((payload.new as any).user_id !== user?.id) markMessageAsRead((payload.new as any).id);
+          scrollToBottom();
+        }
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'request_messages', filter: `request_id=eq.${request.id}` },
+        (payload) => setMessages((current) => current.map((msg) => msg.id === (payload.new as any).id ? { ...msg, ...(payload.new as any) } : msg))
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'request_messages', filter: `request_id=eq.${request.id}` },
+        (payload) => setMessages((current) => current.filter((msg) => msg.id !== (payload.old as any).id))
+      )
+      .subscribe();
 
-          const newMessage: any = {
-            ...payload.new,
-            profiles: profile || null
-          };
-
-          setMessages((current) => {
-            // Evitar duplicatas
-            if (current.some(msg => msg.id === newMessage.id)) {
-              return current;
-            }
-            return [...current, newMessage];
-          });
-          
-          // Marcar como lida se não for mensagem do usuário logado
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if ((payload.new as any).user_id !== currentUser?.id) {
-            markMessageAsRead((payload.new as any).id);
-          }
-          
-          // Scroll automático para o final
-          setTimeout(() => scrollToBottom(), 100);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'request_messages',
-          filter: `request_id=eq.${request.id}`,
-        },
-        async (payload) => {
-          console.log('✏️ Mensagem atualizada via realtime:', payload);
-          
-          setMessages((current) =>
-            current.map((msg) =>
-              msg.id === (payload.new as any).id ? { ...msg, ...payload.new } : msg
-            )
-          );
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'request_messages',
-          filter: `request_id=eq.${request.id}`,
-        },
-        (payload) => {
-          console.log('🗑️ Mensagem deletada via realtime:', payload);
-          
-          setMessages((current) =>
-            current.filter((msg) => msg.id !== (payload.old as any).id)
-          );
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'request_messages',
-          filter: `request_id=eq.${request.id}`,
-        },
-        (payload) => {
-          setMessages((current) =>
-            current.map((msg) =>
-              msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
-            )
-          );
-        }
-      )
-      .subscribe((status) => {
-        console.log('🔌 Status da conexão realtime:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Conectado ao canal de realtime para request:', request.id);
-        }
-      });
-
-    return () => {
-      console.log('❌ Desconectando do canal realtime');
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [request.id]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useEffect(() => { scrollToBottom(); }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const loadMessages = async () => {
     try {
-      const { data: messagesData, error } = await supabase
-        .from('request_messages')
-        .select('*')
-        .eq('request_id', request.id)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      // Buscar perfis dos usuários das mensagens
-      if (messagesData && messagesData.length > 0) {
-        const userIds = [...new Set(messagesData.map(m => m.user_id))];
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, nome, avatar_url')
-          .in('id', userIds);
-
-        const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
-        const messagesWithProfiles = messagesData.map(msg => ({
-          ...msg,
-          profiles: profilesMap.get(msg.user_id) || null
-        }));
-        setMessages(messagesWithProfiles);
-      } else {
-        setMessages([]);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar mensagens:', error);
-    } finally {
-      setLoading(false);
-    }
+      const { data } = await supabase.from('request_messages').select('*, profiles:user_id (id, nome, avatar_url)').eq('request_id', request.id).order('created_at', { ascending: true });
+      setMessages(data || []);
+    } finally { setLoading(false); }
   };
 
   const loadAtendente = async () => {
     if (!request.atendente_id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nome, email')
-        .eq('id', request.atendente_id)
-        .single();
-
-      if (error) throw error;
-      setAtendente(data);
-    } catch (error) {
-      console.error('Erro ao carregar atendente:', error);
-    }
+    const { data } = await supabase.from('profiles').select('id, nome, avatar_url, email').eq('id', request.atendente_id).single();
+    setAtendente(data);
   };
 
   const loadClientUserId = async () => {
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', request.clients?.email)
-        .single();
-
-      if (profile) {
-        setClientUserId(profile.id);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar ID do cliente:', error);
-    }
-  };
-
-  const markMessagesAsRead = async () => {
-    try {
-      if (!user) return;
-
-      // Marcar como lidas todas as mensagens que não são do usuário atual
-      await supabase
-        .from('request_messages')
-        .update({ lida: true, lida_em: new Date().toISOString() })
-        .eq('request_id', request.id)
-        .neq('user_id', user.id)
-        .is('lida', false);
-    } catch (error) {
-      console.error('Erro ao marcar mensagens como lidas:', error);
-    }
-  };
-
-  const markMessageAsRead = async (messageId: string) => {
-    try {
-      await supabase
-        .from('request_messages')
-        .update({ lida: true, lida_em: new Date().toISOString() })
-        .eq('id', messageId);
-    } catch (error) {
-      console.error('Erro ao marcar mensagem como lida:', error);
-    }
+    const { data: client } = await supabase.from('clients').select('email').eq('id', request.client_id).single();
+    if (!client) return;
+    const { data: profile } = await supabase.from('profiles').select('id').eq('email', client.email).single();
+    setClientUserId(profile?.id || null);
   };
 
   const checkRating = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('request_ratings')
-        .select('id')
-        .eq('request_id', request.id)
-        .maybeSingle();
+    const { data } = await supabase.from('request_ratings').select('id').eq('request_id', request.id).maybeSingle();
+    setHasRating(!!data);
+  };
 
-      if (data) {
-        setHasRating(true);
-      }
-    } catch (error) {
-      // Não há avaliação ainda
-      setHasRating(false);
-    }
+  const markMessagesAsRead = async () => {
+    if (!user) return;
+    await supabase.from('request_messages').update({ lida: true, lida_em: new Date().toISOString() }).eq('request_id', request.id).neq('user_id', user.id).eq('lida', false);
+  };
+
+  const markMessageAsRead = async (messageId: string) => {
+    await supabase.from('request_messages').update({ lida: true, lida_em: new Date().toISOString() }).eq('id', messageId);
   };
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta mensagem?')) return;
-
     try {
-      const { error } = await supabase
-        .from('request_messages')
-        .delete()
-        .eq('id', messageId);
-
-      if (error) throw error;
-
-      setMessages(messages.filter(m => m.id !== messageId));
-      
-      toast({
-        title: 'Mensagem excluída',
-        description: 'A mensagem foi removida com sucesso.',
-      });
+      await supabase.from('request_messages').delete().eq('id', messageId);
+      toast({ title: 'Mensagem excluída', description: 'A mensagem foi removida com sucesso.' });
     } catch (error: any) {
-      toast({
-        title: 'Erro ao excluir mensagem',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() && !file) return;
-
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() && !file || !user) return;
     setSending(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
-      // Enviar arquivo se houver
       if (file) {
         const fileName = `${user.id}/${request.id}/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('request-files')
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('request-files')
-          .getPublicUrl(fileName);
-
-        await supabase.from('request_messages').insert({
-          request_id: request.id,
-          user_id: user.id,
-          tipo_mensagem: 'arquivo',
-          file_url: publicUrl,
-          filename: file.name,
-        });
+        await supabase.storage.from('request-files').upload(fileName, file);
+        const { data: { publicUrl } } = supabase.storage.from('request-files').getPublicUrl(fileName);
+        await supabase.from('request_messages').insert({ request_id: request.id, user_id: user.id, tipo_mensagem: 'arquivo', file_url: publicUrl, filename: file.name });
+        setFile(null);
       }
 
-      // Enviar mensagem de texto se houver
       if (newMessage.trim()) {
-        const { error: messageError } = await supabase
-          .from('request_messages')
-          .insert({
-            request_id: request.id,
-            user_id: user.id,
-            tipo_mensagem: 'texto',
-            conteudo: newMessage,
-          });
-
-        if (messageError) throw messageError;
+        await supabase.from('request_messages').insert({ request_id: request.id, user_id: user.id, tipo_mensagem: 'texto', conteudo: newMessage });
       }
 
       setNewMessage('');
-      setFile(null);
-      loadMessages();
-      
-      toast({
-        title: 'Mensagem enviada',
-        description: 'Sua mensagem foi enviada com sucesso',
-      });
+      scrollToBottom();
     } catch (error: any) {
-      toast({
-        title: 'Erro ao enviar mensagem',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setSending(false);
-    }
+      toast({ title: 'Erro ao enviar mensagem', description: error.message, variant: 'destructive' });
+    } finally { setSending(false); }
   };
 
-  const handleUpdateStatus = async (newStatus: string) => {
+  const handleUpdateStatus = async (newStatus: 'aberto' | 'em_atendimento' | 'concluido') => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
-      // Preparar update: se está marcando como concluído, registrar atendente
-      const updateData: any = { status: newStatus };
-      if (newStatus === 'concluido' && !request.atendente_id) {
-        updateData.atendente_id = user.id;
-      }
-
-      const { error } = await supabase
-        .from('requests')
-        .update(updateData)
-        .eq('id', request.id);
-
-      if (error) throw error;
-
-      await supabase.from('request_history').insert({
-        request_id: request.id,
-        changed_by: user.id,
-        tipo_mudanca: 'status',
-        valor_anterior: currentStatus,
-        valor_novo: newStatus,
-        descricao: `Status alterado de ${statusLabels[currentStatus]} para ${statusLabels[newStatus]}`,
-      });
-
+      await supabase.from('requests').update({ status: newStatus }).eq('id', request.id);
       setCurrentStatus(newStatus);
-      
-      // Se marcou como concluído, atualizar o request local com o atendente
-      if (newStatus === 'concluido' && !request.atendente_id) {
-        request.atendente_id = user.id;
-        loadAtendente();
-      }
-      
-      toast({
-        title: 'Status atualizado',
-        description: `Status alterado para ${statusLabels[newStatus]}`,
-      });
+      await supabase.from('request_history').insert({ request_id: request.id, changed_by: user?.id || '', tipo_mudanca: 'status', valor_anterior: currentStatus, valor_novo: newStatus });
+      toast({ title: 'Status atualizado', description: `Status alterado para ${statusLabels[newStatus]}` });
     } catch (error: any) {
-      toast({
-        title: 'Erro ao atualizar status',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao atualizar status', description: error.message, variant: 'destructive' });
     }
   };
 
-  const handleUpdateSetor = async (newSetor: string) => {
+  const handleUpdateSetor = async (newSetor: 'fiscal' | 'pessoal' | 'contabil' | 'controladoria' | 'procuradoria') => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuário não autenticado');
-
-      const { error } = await supabase
-        .from('requests')
-        .update({ setor: newSetor as any })
-        .eq('id', request.id);
-
-      if (error) throw error;
-
-      await supabase.from('request_history').insert({
-        request_id: request.id,
-        changed_by: user.id,
-        tipo_mudanca: 'setor',
-        valor_anterior: currentSetor,
-        valor_novo: newSetor,
-        descricao: `Setor alterado de ${setoresLabels[currentSetor]} para ${setoresLabels[newSetor]}`,
-      });
-
+      await supabase.from('requests').update({ setor: newSetor }).eq('id', request.id);
       setCurrentSetor(newSetor);
-      
-      toast({
-        title: 'Setor atualizado',
-        description: `Setor transferido para ${setoresLabels[newSetor]}`,
-      });
+      await supabase.from('request_history').insert({ request_id: request.id, changed_by: user?.id || '', tipo_mudanca: 'setor', valor_anterior: currentSetor, valor_novo: newSetor });
+      toast({ title: 'Setor atualizado', description: `Setor alterado para ${setoresLabels[newSetor]}` });
     } catch (error: any) {
-      toast({
-        title: 'Erro ao atualizar setor',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao atualizar setor', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -479,119 +195,187 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
   }
 
   return (
-    <div className="space-y-4">
-      <Button variant="ghost" onClick={onBack}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Voltar
-      </Button>
-
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono font-semibold text-primary text-xl">
-                  #{request.protocol}
-                </span>
-                <Badge className={statusColors[currentStatus]}>
-                  {statusLabels[currentStatus]}
-                </Badge>
-              </div>
-              <h2 className="text-2xl font-bold text-foreground">{request.assunto}</h2>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Building className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Setor:</span>
-              <Badge variant="outline">{setoresLabels[currentSetor]}</Badge>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Criado em:</span>
-              <span className="text-muted-foreground">
-                {format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-              </span>
-            </div>
-            {isInternal && request.clients && (
-              <div className="flex items-center gap-2 text-sm">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Cliente:</span>
-                <div className="flex items-center gap-2">
-                  {clientUserId && isOnline(clientUserId) && (
-                    <span className="flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                  )}
-                  <span className="text-muted-foreground">{request.clients.nome_razao_social}</span>
+    <div className="flex h-[calc(100vh-12rem)] gap-4">
+      {/* Área Principal do Chat */}
+      <div className="flex-1 flex flex-col bg-background rounded-lg border shadow-sm">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-card/50 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={onBack}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 ring-2 ring-background">
+                <AvatarImage src={atendente?.avatar_url} />
+                <AvatarFallback className="bg-primary/10">{request.clients?.nome_razao_social?.substring(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="font-semibold text-lg leading-none">{request.assunto}</h2>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                  <span className="font-mono">#{request.protocol}</span>
+                  <span>•</span>
+                  <span>{isInternal ? request.clients?.nome_razao_social : 'Suporte'}</span>
                 </div>
               </div>
-            )}
-            {!isInternal && atendente && (
-              <div className="flex items-center gap-2 text-sm">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Atendente:</span>
-                <span className="text-muted-foreground">{atendente.nome}</span>
-              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={statusVariants[currentStatus]} className="font-medium">
+              {statusLabels[currentStatus]}
+            </Badge>
+            {isInternal && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setShowTransferDialog(true)}>
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  Transferir
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
             )}
           </div>
+        </div>
 
-          {!isInternal && currentStatus === 'concluido' && !hasRating && (
-            <div className="pt-4 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowRatingDialog(true)}
-              >
-                <Star className="mr-2 h-4 w-4" />
-                Avaliar Atendimento
+        {/* Mensagens */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 bg-muted/20">
+          {messages.map((message) => {
+            const isOwnMessage = message.user_id === user?.id;
+            
+            return (
+              <div key={message.id} className={`flex gap-3 ${isOwnMessage ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+                {!isOwnMessage && (
+                  <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-background">
+                    <AvatarImage src={message.profiles?.avatar_url} />
+                    <AvatarFallback className="bg-secondary/50 text-xs">
+                      {message.profiles?.nome?.substring(0, 2).toUpperCase() || 'SI'}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                
+                <div className={`flex flex-col gap-1.5 max-w-[70%] ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+                  {!isOwnMessage && (
+                    <span className="text-xs font-semibold text-foreground px-3">
+                      {message.profiles?.nome || 'Sistema'}
+                    </span>
+                  )}
+                  
+                  {message.tipo_mensagem === 'texto' && (
+                    <div className={`px-4 py-3 rounded-2xl shadow-sm ${
+                        isOwnMessage
+                          ? 'bg-primary text-primary-foreground rounded-br-md'
+                          : 'bg-card text-foreground border rounded-bl-md'
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed">{message.conteudo}</p>
+                    </div>
+                  )}
+                  
+                  {message.tipo_mensagem === 'arquivo' && (
+                    <div className={`px-4 py-3 rounded-2xl flex items-center gap-3 shadow-sm ${
+                        isOwnMessage
+                          ? 'bg-primary text-primary-foreground rounded-br-md'
+                          : 'bg-card text-foreground border rounded-bl-md'
+                      }`}
+                    >
+                      <FileText className="h-5 w-5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{message.filename}</p>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => window.open(message.file_url, '_blank')}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2 px-3">
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(message.created_at), "HH:mm", { locale: ptBR })}
+                    </span>
+                    {isOwnMessage && message.lida && (
+                      <CheckCheck className="h-3.5 w-3.5 text-blue-500" />
+                    )}
+                    {isInternal && userRole === 'admin' && (
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive/70 hover:text-destructive" onClick={() => handleDeleteMessage(message.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                {isOwnMessage && (
+                  <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-primary/20">
+                    <AvatarImage src={message.profiles?.avatar_url} />
+                    <AvatarFallback className="bg-primary/10 text-xs">
+                      {message.profiles?.nome?.substring(0, 2).toUpperCase() || 'EU'}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input de Mensagem */}
+        <div className="px-6 py-4 border-t bg-card/50 backdrop-blur">
+          {file && (
+            <div className="mb-3 flex items-center gap-2 bg-muted/50 px-3 py-2.5 rounded-lg border">
+              <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm flex-1 truncate font-medium">{file.name}</span>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setFile(null)}>
+                <X className="h-4 w-4" />
               </Button>
             </div>
           )}
+          
+          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+            <input type="file" id="file-upload" className="hidden" onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
+            <Button type="button" variant="ghost" size="icon" className="flex-shrink-0" onClick={() => document.getElementById('file-upload')?.click()}>
+              <Paperclip className="h-5 w-5" />
+            </Button>
+            
+            <Input
+              placeholder="Digite sua mensagem..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              className="flex-1 h-11"
+              disabled={sending}
+            />
+            
+            <Button type="submit" size="icon" disabled={sending || (!newMessage.trim() && !file)} className="rounded-full h-11 w-11 flex-shrink-0">
+              {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            </Button>
+          </form>
+        </div>
+      </div>
 
-          {isInternal && (
-            <div className="space-y-4 pt-4 border-t">
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowTransferDialog(true)}
-                >
-                  <ArrowRightLeft className="mr-2 h-4 w-4" />
-                  Transferir Atendimento
-                </Button>
-                {userRole === 'admin' && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Excluir Protocolo
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <label className="text-sm font-medium mb-2 block">Alterar Status</label>
-                  <Select value={currentStatus} onValueChange={handleUpdateStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="aberto">Aberto</SelectItem>
-                      <SelectItem value="em_atendimento">Em Atendimento</SelectItem>
-                      <SelectItem value="concluido">Concluído</SelectItem>
-                    </SelectContent>
-                  </Select>
+      {/* Painel Lateral de Informações */}
+      <Card className="w-80 flex flex-col h-full shadow-sm">
+        <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+          <div>
+            <h3 className="font-semibold text-lg mb-4">Informações Gerais</h3>
+            <div className="space-y-4">
+              {isInternal && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <User className="h-4 w-4 text-primary" />
+                    <span>Cliente</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground pl-6 leading-relaxed">
+                    {request.clients?.nome_razao_social}
+                  </p>
                 </div>
-                <div className="flex-1">
-                  <label className="text-sm font-medium mb-2 block">Transferir Setor</label>
+              )}
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Building className="h-4 w-4 text-primary" />
+                  <span>Setor</span>
+                </div>
+                {isInternal ? (
                   <Select value={currentSetor} onValueChange={handleUpdateSetor}>
-                    <SelectTrigger>
+                    <SelectTrigger className="ml-6">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -602,170 +386,113 @@ export function RequestChat({ request, onBack, isInternal = false }: RequestChat
                       <SelectItem value="procuradoria">Procuradoria</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground pl-6">{setoresLabels[currentSetor]}</p>
+                )}
               </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span>Data de Criação</span>
+                </div>
+                <p className="text-sm text-muted-foreground pl-6">
+                  {format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </p>
+              </div>
+
+              {atendente && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <User className="h-4 w-4 text-primary" />
+                    <span>Atendente</span>
+                  </div>
+                  <div className="flex items-center gap-2 pl-6">
+                    <Avatar className="h-6 w-6 ring-2 ring-background">
+                      <AvatarImage src={atendente.avatar_url} />
+                      <AvatarFallback className="text-xs">{atendente.nome?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-muted-foreground font-medium">{atendente.nome}</span>
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
+
+          {isInternal && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="font-semibold text-lg mb-4">Status</h3>
+                <Select value={currentStatus} onValueChange={handleUpdateStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aberto">Aberto</SelectItem>
+                    <SelectItem value="em_atendimento">Em Atendimento</SelectItem>
+                    <SelectItem value="concluido">Concluído</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
           )}
 
           {!isInternal && currentStatus === 'concluido' && !hasRating && (
-            <div className="pt-4 border-t">
-              <Button
-                onClick={() => setShowRatingDialog(true)}
-                className="w-full"
-              >
+            <>
+              <Separator />
+              <Button onClick={() => setShowRatingDialog(true)} className="w-full">
                 <Star className="mr-2 h-4 w-4" />
                 Avaliar Atendimento
               </Button>
-            </div>
+            </>
           )}
-        </div>
-      </Card>
 
-      <Card className="p-6">
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg">Histórico de Conversas</h3>
-          
-          <div className="space-y-4 max-h-[500px] overflow-y-auto">
-            {messages.map((message) => (
-              <div key={message.id} className="flex gap-3">
-                <Avatar className="h-8 w-8 flex-shrink-0">
-                  <AvatarImage src={message.profiles?.avatar_url} alt={message.profiles?.nome} />
-                  <AvatarFallback>
-                    {message.profiles?.nome?.substring(0, 2).toUpperCase() || 'SI'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{message.profiles?.nome || 'Sistema'}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(message.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </span>
-                    {message.lida && message.lida_em && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <CheckCheck className="h-3 w-3 text-blue-500" />
-                        <span>Visto às {format(new Date(message.lida_em), "HH:mm", { locale: ptBR })}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {message.tipo_mensagem === 'texto' && (
-                    <p className="text-sm bg-muted p-3 rounded-lg">{message.conteudo}</p>
-                  )}
-                  
-                  {message.tipo_mensagem === 'arquivo' && (
-                    <div className="flex items-center gap-2 bg-muted p-3 rounded-lg">
-                      <Paperclip className="h-4 w-4" />
-                      <span className="text-sm flex-1">{message.filename}</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => window.open(message.file_url, '_blank')}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                {userRole === 'admin' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDeleteMessage(message.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="space-y-3 pt-4 border-t">
-            {file && (
-              <div className="flex items-center gap-2 bg-muted p-2 rounded">
-                <Paperclip className="h-4 w-4" />
-                <span className="text-sm flex-1">{file.name}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setFile(null)}
-                >
-                  Remover
-                </Button>
-              </div>
-            )}
-            
-            <div className="flex gap-2">
-              <Input
-                type="file"
-                onChange={(e) => e.target.files && setFile(e.target.files[0])}
-                className="hidden"
-                id="file-upload"
-              />
-              <label htmlFor="file-upload">
-                <Button type="button" variant="outline" size="icon" asChild>
-                  <span className="cursor-pointer">
-                    <Paperclip className="h-4 w-4" />
-                  </span>
-                </Button>
-              </label>
-              
-              <Textarea
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Digite sua mensagem..."
-                className="flex-1 min-h-[60px]"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-              />
-              
-              <Button
-                onClick={handleSendMessage}
-                disabled={sending || (!newMessage.trim() && !file)}
-                size="icon"
-              >
-                {sending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+          <Separator />
+          <div>
+            <h3 className="font-semibold text-lg mb-2">Descrição</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {request.descricao}
+            </p>
           </div>
         </div>
       </Card>
 
-      <TransferRequestDialog
-        open={showTransferDialog}
-        onOpenChange={setShowTransferDialog}
-        request={request}
-        onTransferComplete={() => {
-          loadMessages();
-          loadAtendente();
-          onBack();
-        }}
-      />
+      {showTransferDialog && (
+        <TransferRequestDialog
+          open={showTransferDialog}
+          onOpenChange={setShowTransferDialog}
+          request={request}
+          onTransferComplete={() => {
+            setShowTransferDialog(false);
+            onBack();
+          }}
+        />
+      )}
 
-      <RatingDialog
-        open={showRatingDialog}
-        onOpenChange={setShowRatingDialog}
-        request={request}
-        onRatingComplete={() => {
-          checkRating();
-        }}
-      />
+      {showRatingDialog && clientUserId && (
+        <RatingDialog
+          open={showRatingDialog}
+          onOpenChange={setShowRatingDialog}
+          request={request}
+          onRatingComplete={() => {
+            setShowRatingDialog(false);
+            checkRating();
+          }}
+        />
+      )}
 
-      <DeleteRequestDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        request={request}
-        onDeleteComplete={onBack}
-      />
+      {showDeleteDialog && (
+        <DeleteRequestDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          request={request}
+          onDeleteComplete={() => {
+            setShowDeleteDialog(false);
+            onBack();
+          }}
+        />
+      )}
     </div>
   );
 }
