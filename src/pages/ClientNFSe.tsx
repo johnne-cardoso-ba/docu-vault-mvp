@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
+import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, FileText, Download, Search, Calendar, Settings, Printer } from "lucide-react";
+import { Loader2, FileText, Download, Search, Calendar, Settings, Printer, Plus, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { NFSePrintView } from "@/components/nfse/NFSePrintView";
+import { EmitirNFSeDialog } from "@/components/nfse/EmitirNFSeDialog";
+import { CancelarNFSeDialog } from "@/components/nfse/CancelarNFSeDialog";
 
 export default function ClientNFSe() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const printRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [notas, setNotas] = useState<any[]>([]);
@@ -27,6 +31,9 @@ export default function ClientNFSe() {
   const [selectedNota, setSelectedNota] = useState<any>(null);
   const [prestadorData, setPrestadorData] = useState<any>(null);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [emitirDialogOpen, setEmitirDialogOpen] = useState(false);
+  const [cancelarDialogOpen, setCancelarDialogOpen] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -58,6 +65,26 @@ export default function ClientNFSe() {
   const loadNotas = async () => {
     try {
       setLoading(true);
+
+      // Buscar client_id do usuário
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", user?.id)
+        .single();
+
+      if (profileData) {
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("email", profileData.email)
+          .single();
+
+        if (clientData) {
+          setClientId(clientData.id);
+        }
+      }
+
       const { data, error } = await supabase
         .from("nfse_emitidas")
         .select("*")
@@ -149,13 +176,22 @@ export default function ClientNFSe() {
               Visualize suas notas fiscais de serviço eletrônicas
             </p>
           </div>
-          <Button 
-            onClick={() => navigate("/nfse/cliente/config")}
-            variant="outline"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Configurar NFS-e
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setEmitirDialogOpen(true)}
+              disabled={!clientId}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Emitir NFS-e
+            </Button>
+            <Button 
+              onClick={() => navigate("/nfse/cliente/config")}
+              variant="outline"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Configurar
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -269,6 +305,19 @@ export default function ClientNFSe() {
                               >
                                 <Printer className="h-4 w-4" />
                               </Button>
+                              {nota.status !== "cancelada" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setSelectedNota(nota);
+                                    setCancelarDialogOpen(true);
+                                  }}
+                                  title="Cancelar NFS-e"
+                                >
+                                  <XCircle className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
                               {nota.link_nfse && (
                                 <Button
                                   variant="ghost"
@@ -321,6 +370,20 @@ export default function ClientNFSe() {
         </div>
       </DialogContent>
     </Dialog>
+
+    <EmitirNFSeDialog
+      open={emitirDialogOpen}
+      onOpenChange={setEmitirDialogOpen}
+      onSuccess={loadNotas}
+      clientId={clientId || undefined}
+    />
+
+    <CancelarNFSeDialog
+      open={cancelarDialogOpen}
+      onOpenChange={setCancelarDialogOpen}
+      nota={selectedNota}
+      onSuccess={loadNotas}
+    />
   </AppLayout>
 );
 }
