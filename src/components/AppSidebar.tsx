@@ -49,8 +49,7 @@ export function AppSidebar() {
     { title: 'Documentos', url: '/documentos', icon: FileText },
     { title: 'Solicitações', url: '/solicitacoes', icon: MessageSquare },
     ...(hasNFSeAccess ? [
-      { title: 'Minhas NFS-e', url: '/nfse/cliente', icon: Receipt },
-      { title: 'Configurar NFS-e', url: '/nfse/cliente/config', icon: Settings }
+      { title: 'Minhas NFS-e', url: '/nfse/cliente', icon: Receipt }
     ] : []),
   ];
 
