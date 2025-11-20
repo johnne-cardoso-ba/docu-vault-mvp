@@ -1,54 +1,37 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, FileText, Settings, Search, Plus, Eye, Download } from "lucide-react";
+import { Loader2, Search, Calendar, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 export default function NFSe() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [notas, setNotas] = useState<any[]>([]);
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [showEmitirDialog, setShowEmitirDialog] = useState(false);
-  const [configExists, setConfigExists] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    client_id: "",
-    valor_servicos: "",
-    discriminacao: "",
-    iss_retido: false,
-    desconto_incondicionado: "0"
-  });
+  const [filteredNotas, setFilteredNotas] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
-    checkConfig();
     loadNotas();
-    loadClientes();
   }, []);
 
-  const checkConfig = async () => {
-    const { data } = await supabase
-      .from("nfse_config")
-      .select("id")
-      .single();
-    
-    setConfigExists(!!data);
-  };
+  useEffect(() => {
+    filterNotas();
+  }, [searchTerm, startDate, endDate, notas]);
 
   const loadNotas = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from("nfse_emitidas")
         .select(`
@@ -65,305 +48,193 @@ export default function NFSe() {
     } catch (error: any) {
       console.error("Erro ao carregar notas:", error);
       toast.error("Erro ao carregar notas fiscais");
-    }
-  };
-
-  const loadClientes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, nome_razao_social, cnpj_cpf, email, telefone, logradouro, numero, bairro, cidade, estado, cep")
-        .eq("situacao", "Ativo")
-        .order("nome_razao_social");
-
-      if (error) throw error;
-      setClientes(data || []);
-    } catch (error: any) {
-      console.error("Erro ao carregar clientes:", error);
-      toast.error("Erro ao carregar clientes");
-    }
-  };
-
-  const handleEmitir = async () => {
-    if (!configExists) {
-      toast.error("Configure os dados da NFS-e antes de emitir");
-      navigate("/nfse/config");
-      return;
-    }
-
-    if (!formData.client_id || !formData.valor_servicos || !formData.discriminacao) {
-      toast.error("Preencha todos os campos obrigatórios");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Buscar dados do cliente selecionado
-      const cliente = clientes.find(c => c.id === formData.client_id);
-      if (!cliente) throw new Error("Cliente não encontrado");
-
-      // Buscar config
-      const { data: config, error: configError } = await supabase
-        .from("nfse_config")
-        .select("*")
-        .single();
-
-      if (configError) throw configError;
-
-      // Gerar próximo número RPS usando função SQL
-      const { data: proximoRpsData, error: rpsError } = await supabase.rpc("get_next_rps");
-      
-      if (rpsError) throw rpsError;
-      const proximoRps = proximoRpsData as number;
-
-      const valorServicos = parseFloat(formData.valor_servicos);
-      const desconto = parseFloat(formData.desconto_incondicionado);
-      const baseCalculo = valorServicos - desconto;
-      const valorIss = baseCalculo * (parseFloat(config.aliquota_iss.toString()) / 100);
-      const valorLiquido = baseCalculo - (formData.iss_retido ? valorIss : 0);
-
-      // Inserir NFS-e no banco
-      const { data: nfse, error: nfseError } = await supabase
-        .from("nfse_emitidas")
-        .insert([{
-          numero_rps: proximoRps,
-          client_id: formData.client_id,
-          tomador_cnpj_cpf: cliente.cnpj_cpf,
-          tomador_razao_social: cliente.nome_razao_social,
-          tomador_endereco: cliente.logradouro,
-          tomador_numero: cliente.numero,
-          tomador_bairro: cliente.bairro,
-          tomador_cidade: cliente.cidade,
-          tomador_uf: cliente.estado,
-          tomador_cep: cliente.cep,
-          tomador_email: cliente.email,
-          tomador_telefone: cliente.telefone,
-          valor_servicos: valorServicos,
-          desconto_incondicionado: desconto,
-          base_calculo: baseCalculo,
-          aliquota: config.aliquota_iss,
-          valor_iss: valorIss,
-          iss_retido: formData.iss_retido,
-          valor_iss_retido: formData.iss_retido ? valorIss : 0,
-          valor_liquido_nfse: valorLiquido,
-          item_lista_servico: config.item_lista_servico,
-          codigo_tributacao_municipio: config.codigo_tributacao_municipio,
-          discriminacao: formData.discriminacao,
-          codigo_cnae: config.cnae_fiscal,
-          emitida_por: (await supabase.auth.getUser()).data.user?.id,
-          status: "processando"
-        }])
-        .select()
-        .single();
-
-      if (nfseError) throw nfseError;
-
-      // Chamar edge function para enviar à SEFAZ
-      const { data: result, error: funcError } = await supabase.functions.invoke("emitir-nfse", {
-        body: { nfse_id: nfse.id }
-      });
-
-      if (funcError) throw funcError;
-
-      toast.success("NFS-e emitida com sucesso!");
-      setShowEmitirDialog(false);
-      setFormData({
-        client_id: "",
-        valor_servicos: "",
-        discriminacao: "",
-        iss_retido: false,
-        desconto_incondicionado: "0"
-      });
-      loadNotas();
-    } catch (error: any) {
-      console.error("Erro ao emitir NFS-e:", error);
-      toast.error(error.message || "Erro ao emitir NFS-e");
     } finally {
       setLoading(false);
     }
   };
 
+  const filterNotas = () => {
+    let filtered = [...notas];
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (nota) =>
+          nota.numero_nota?.toString().includes(term) ||
+          nota.numero_rps?.toString().includes(term) ||
+          nota.discriminacao?.toLowerCase().includes(term) ||
+          nota.clients?.nome_razao_social?.toLowerCase().includes(term) ||
+          nota.tomador_razao_social?.toLowerCase().includes(term)
+      );
+    }
+
+    if (startDate) {
+      filtered = filtered.filter(
+        (nota) => new Date(nota.data_emissao) >= new Date(startDate)
+      );
+    }
+
+    if (endDate) {
+      filtered = filtered.filter(
+        (nota) => new Date(nota.data_emissao) <= new Date(endDate)
+      );
+    }
+
+    setFilteredNotas(filtered);
+  };
+
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      emitida: "default",
-      processando: "secondary",
-      cancelada: "destructive",
-      erro: "destructive"
+    const configs: Record<string, { label: string; variant: any }> = {
+      processando: { label: "Processando", variant: "secondary" },
+      emitida: { label: "Emitida", variant: "default" },
+      erro: { label: "Erro", variant: "destructive" },
+      cancelada: { label: "Cancelada", variant: "outline" },
     };
-    return <Badge variant={variants[status] || "outline"}>{status.toUpperCase()}</Badge>;
+
+    const config = configs[status] || { label: status, variant: "secondary" };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
   };
 
   return (
     <AppLayout>
-      <div className="container mx-auto max-w-7xl">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">NFS-e - Notas Fiscais</h1>
-          <p className="text-muted-foreground">Emita e gerencie suas notas fiscais eletrônicas</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/nfse/config")}>
-            <Settings className="mr-2 h-4 w-4" />
-            Configurações
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">NFS-e - Todas as Notas</h2>
+            <p className="text-muted-foreground mt-2">
+              Visualize e gerencie todas as notas fiscais emitidas pelos clientes
+            </p>
+          </div>
+          <Button onClick={() => navigate("/nfse/admin/configs")} variant="outline">
+            <Settings className="h-4 w-4 mr-2" />
+            Gerenciar Configurações
           </Button>
-          <Dialog open={showEmitirDialog} onOpenChange={setShowEmitirDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Emitir NFS-e
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Emitir Nova NFS-e</DialogTitle>
-                <DialogDescription>Preencha os dados para emissão da nota fiscal</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cliente">Cliente *</Label>
-                  <Select value={formData.client_id} onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clientes.map(cliente => (
-                        <SelectItem key={cliente.id} value={cliente.id}>
-                          {cliente.nome_razao_social} - {cliente.cnpj_cpf}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="valor">Valor dos Serviços (R$) *</Label>
-                    <Input
-                      id="valor"
-                      type="number"
-                      step="0.01"
-                      value={formData.valor_servicos}
-                      onChange={(e) => setFormData(prev => ({ ...prev, valor_servicos: e.target.value }))}
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="desconto">Desconto (R$)</Label>
-                    <Input
-                      id="desconto"
-                      type="number"
-                      step="0.01"
-                      value={formData.desconto_incondicionado}
-                      onChange={(e) => setFormData(prev => ({ ...prev, desconto_incondicionado: e.target.value }))}
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="discriminacao">Discriminação dos Serviços *</Label>
-                  <Textarea
-                    id="discriminacao"
-                    value={formData.discriminacao}
-                    onChange={(e) => setFormData(prev => ({ ...prev, discriminacao: e.target.value }))}
-                    placeholder="Descreva os serviços prestados..."
-                    rows={4}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Filtros</CardTitle>
+            <CardDescription>Busque e filtre as notas fiscais</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Buscar</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Número, descrição ou cliente..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
                   />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="iss_retido"
-                    checked={formData.iss_retido}
-                    onChange={(e) => setFormData(prev => ({ ...prev, iss_retido: e.target.checked }))}
-                    className="rounded"
-                  />
-                  <Label htmlFor="iss_retido" className="cursor-pointer">ISS Retido na Fonte</Label>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setShowEmitirDialog(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleEmitir} disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Emitindo...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Emitir NFS-e
-                      </>
-                    )}
-                  </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Data Inicial</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Data Final</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Notas Fiscais Emitidas</CardTitle>
-          <CardDescription>Histórico de todas as NFS-e emitidas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Número</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {notas.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Nenhuma nota fiscal emitida ainda
-                  </TableCell>
-                </TableRow>
-              ) : (
-                notas.map((nota) => (
-                  <TableRow key={nota.id}>
-                    <TableCell className="font-medium">
-                      {nota.numero_nota || `RPS ${nota.numero_rps}`}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(nota.data_emissao), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell>{nota.clients?.nome_razao_social || nota.tomador_razao_social}</TableCell>
-                    <TableCell>R$ {nota.valor_liquido_nfse.toFixed(2)}</TableCell>
-                    <TableCell>{getStatusBadge(nota.status)}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="ghost">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {nota.link_nfse && (
-                          <Button size="sm" variant="ghost" asChild>
-                            <a href={nota.link_nfse} target="_blank" rel="noopener noreferrer">
-                              <Download className="h-4 w-4" />
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Número</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Data Emissão</TableHead>
+                      <TableHead>Tomador</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredNotas.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          Nenhuma nota fiscal encontrada
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredNotas.map((nota) => (
+                        <TableRow key={nota.id}>
+                          <TableCell className="font-medium">
+                            {nota.numero_nota || `RPS ${nota.numero_rps}`}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">
+                                {nota.clients?.nome_razao_social || "N/A"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {nota.clients?.cnpj_cpf}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(nota.data_emissao), "dd/MM/yyyy HH:mm", {
+                              locale: ptBR,
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{nota.tomador_razao_social}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {nota.tomador_cnpj_cpf}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(nota.valor_servicos)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getStatusBadge(nota.status)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppLayout>
   );

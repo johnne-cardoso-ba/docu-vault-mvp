@@ -32,7 +32,6 @@ export function AppSidebar() {
     { title: 'Enviar Documento', url: '/enviar-documento', icon: Upload },
     { title: 'Documentos', url: '/documentos', icon: FileText },
     { title: 'NFS-e', url: '/nfse', icon: Receipt },
-    { title: 'Config. NFS-e', url: '/nfse/admin/configs', icon: Settings },
     { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },
   ];
 
