@@ -308,11 +308,27 @@ export function NotificationBell() {
     if (!user || !userRole) return;
 
     try {
-      // Buscar solicitações com novas mensagens
-      let query = supabase
-        .from('requests')
-        .select('id, protocol, assunto, status, updated_at');
+      // Buscar mensagens não lidas
+      let messagesQuery = supabase
+        .from('request_messages')
+        .select(`
+          id,
+          request_id,
+          user_id,
+          created_at,
+          lida,
+          requests!inner(
+            id,
+            protocol,
+            assunto,
+            client_id
+          )
+        `)
+        .eq('lida', false)
+        .neq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
+      // Filtrar por cliente se for usuário cliente
       if (userRole === 'cliente') {
         const { data: profile } = await supabase
           .from('profiles')
@@ -330,31 +346,50 @@ export function NotificationBell() {
 
         if (!client) return;
 
-        query = query.eq('client_id', client.id);
+        messagesQuery = messagesQuery.eq('requests.client_id', client.id);
       }
 
-      const { data: requests } = await query;
+      const { data: unreadMessages, error } = await messagesQuery;
 
-      if (!requests) return;
+      if (error) {
+        console.error('Erro ao buscar mensagens não lidas:', error);
+        return;
+      }
 
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      if (!unreadMessages || unreadMessages.length === 0) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
 
-      const filteredRequests = (requests as any[]).filter((r) => {
-        const isRecent = r.updated_at > twentyFourHoursAgo;
-        const isResponseForClient = userRole === 'cliente' ? r.status !== 'aberto' : true;
-        return isRecent && isResponseForClient;
-      });
+      // Agrupar por request_id para evitar múltiplas notificações da mesma solicitação
+      const notificationsByRequest = new Map<string, any>();
+      
+      for (const message of unreadMessages) {
+        const requestId = message.request_id;
+        if (!notificationsByRequest.has(requestId)) {
+          notificationsByRequest.set(requestId, {
+            id: `request-${requestId}`,
+            request_id: requestId,
+            protocol: (message.requests as any).protocol,
+            assunto: (message.requests as any).assunto,
+            tipo: 'nova_mensagem' as const,
+            created_at: message.created_at,
+            lida: false,
+            unread_count: 1,
+          });
+        } else {
+          const existing = notificationsByRequest.get(requestId);
+          existing.unread_count += 1;
+          // Manter a mensagem mais recente
+          if (message.created_at > existing.created_at) {
+            existing.created_at = message.created_at;
+          }
+        }
+      }
 
-      const notifications: Notification[] = filteredRequests
-        .map((r) => ({
-          id: r.id,
-          request_id: r.id,
-          protocol: r.protocol,
-          assunto: r.assunto,
-          tipo: 'nova_mensagem' as const,
-          created_at: r.updated_at,
-          lida: false,
-        }))
+      const notifications = Array.from(notificationsByRequest.values())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 10);
 
       setNotifications(notifications);
@@ -368,13 +403,26 @@ export function NotificationBell() {
     await loadNotifications();
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
     console.log('🔍 Clicando na notificação:', notification);
     
     if (notification.user_id) {
       // Se é notificação de presença, ir para atendimento
       navigate('/atendimento');
     } else if (notification.request_id) {
+      // Marcar todas as mensagens dessa solicitação como lidas
+      try {
+        await supabase
+          .from('request_messages')
+          .update({ lida: true, lida_em: new Date().toISOString() })
+          .eq('request_id', notification.request_id)
+          .neq('user_id', user?.id || '');
+        
+        console.log('✅ Mensagens marcadas como lidas');
+      } catch (error) {
+        console.error('Erro ao marcar mensagens como lidas:', error);
+      }
+
       // Se é notificação de request, ir para a página de solicitações
       // e passar o request_id via state para abrir automaticamente
       if (userRole === 'cliente') {
@@ -388,16 +436,33 @@ export function NotificationBell() {
       }
     }
     
-    // Marcar notificação como lida
-    setNotifications(prev => 
-      prev.map(n => n.id === notification.id ? { ...n, lida: true } : n)
-    );
+    // Remover notificação da lista
+    setNotifications(prev => prev.filter(n => n.id !== notification.id));
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  const markAsRead = () => {
-    setUnreadCount(0);
-    setNotifications(notifications.map(n => ({ ...n, lida: true })));
+  const markAsRead = async () => {
+    try {
+      // Marcar todas as mensagens não lidas como lidas
+      const requestIds = notifications
+        .filter(n => n.request_id)
+        .map(n => n.request_id);
+
+      if (requestIds.length > 0) {
+        await supabase
+          .from('request_messages')
+          .update({ lida: true, lida_em: new Date().toISOString() })
+          .in('request_id', requestIds)
+          .neq('user_id', user?.id || '');
+        
+        console.log('✅ Todas as mensagens marcadas como lidas');
+      }
+
+      setUnreadCount(0);
+      setNotifications([]);
+    } catch (error) {
+      console.error('Erro ao marcar todas como lidas:', error);
+    }
   };
 
   return (
@@ -462,13 +527,22 @@ export function NotificationBell() {
                             {notif.assunto}
                           </p>
                         ) : (
-                          <p className="text-sm text-muted-foreground truncate">
-                            #{notif.protocol} - {notif.assunto}
-                          </p>
+                          <>
+                            <p className="text-sm text-muted-foreground truncate">
+                              #{notif.protocol} - {notif.assunto}
+                            </p>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(notif.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                              {(notif as any).unread_count && (notif as any).unread_count > 1 && (
+                                <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+                                  {(notif as any).unread_count}
+                                </Badge>
+                              )}
+                            </div>
+                          </>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(notif.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
-                        </p>
                       </div>
                       {!notif.lida && (
                         <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1" />
