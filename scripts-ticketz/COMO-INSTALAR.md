@@ -26,17 +26,20 @@ Valor: [IP da sua VPS]
 ssh root@seu-ip-vps
 ```
 
-### 2. Baixe o script
-```bash
-curl -o instalar-limpo.sh https://raw.githubusercontent.com/seu-usuario/seu-repo/main/scripts-ticketz/instalar-limpo.sh
-chmod +x instalar-limpo.sh
-```
-
-**OU copie manualmente:**
+### 2. Copie o script para a VPS
 ```bash
 nano instalar-limpo.sh
-# Cole o conteúdo do arquivo instalar-limpo.sh
-# Salve: Ctrl+O, Enter, Ctrl+X
+```
+
+**Cole o conteúdo completo do arquivo `scripts-ticketz/instalar-limpo.sh` deste projeto**
+
+Depois salve:
+- Pressione `Ctrl+O` (salvar)
+- Pressione `Enter` (confirmar)
+- Pressione `Ctrl+X` (sair)
+
+Dê permissão de execução:
+```bash
 chmod +x instalar-limpo.sh
 ```
 
