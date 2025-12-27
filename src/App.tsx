@@ -9,9 +9,6 @@ import Clients from "./pages/Clients";
 import Collaborators from "./pages/Collaborators";
 import Profile from "./pages/Profile";
 import Reports from "./pages/Reports";
-import NFSe from "./pages/NFSe";
-import ClientNFSe from "./pages/ClientNFSe";
-import ClientNFSeConfig from "./pages/ClientNFSeConfig";
 import UploadDocument from "./pages/UploadDocument";
 import Documents from "./pages/Documents";
 import Requests from "./pages/Requests";
@@ -98,30 +95,6 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <Reports />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/nfse" 
-            element={
-              <ProtectedRoute allowedRoles={['admin', 'colaborador']}>
-                <NFSe />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/nfse/cliente" 
-            element={
-              <ProtectedRoute allowedRoles={['cliente']}>
-                <ClientNFSe />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/nfse/cliente/config" 
-            element={
-              <ProtectedRoute allowedRoles={['cliente']}>
-                <ClientNFSeConfig />
               </ProtectedRoute>
             } 
           />
