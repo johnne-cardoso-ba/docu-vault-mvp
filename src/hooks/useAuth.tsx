@@ -11,7 +11,6 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [mustChangePassword, setMustChangePassword] = useState(false);
-  const [hasNFSeAccess, setHasNFSeAccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -45,24 +44,10 @@ export function useAuth() {
             if (profileData) {
               setMustChangePassword(profileData.deve_trocar_senha || false);
             }
-
-            // Check if client has NFS-e access
-            if (data?.role === 'cliente') {
-              const { data: clientData } = await supabase
-                .from('clients')
-                .select('tem_acesso_nfse')
-                .eq('email', session.user.email)
-                .single();
-              
-              if (clientData) {
-                setHasNFSeAccess(clientData.tem_acesso_nfse || false);
-              }
-            }
           }, 0);
         } else {
           setUserRole(null);
           setMustChangePassword(false);
-          setHasNFSeAccess(false);
         }
         
         setLoading(false);
@@ -95,19 +80,6 @@ export function useAuth() {
           
           if (profileData) {
             setMustChangePassword(profileData.deve_trocar_senha || false);
-          }
-
-          // Check if client has NFS-e access
-          if (data?.role === 'cliente') {
-            const { data: clientData } = await supabase
-              .from('clients')
-              .select('tem_acesso_nfse')
-              .eq('email', session.user.email)
-              .single();
-            
-            if (clientData) {
-              setHasNFSeAccess(clientData.tem_acesso_nfse || false);
-            }
           }
 
           setLoading(false);
@@ -195,7 +167,6 @@ export function useAuth() {
     localStorage.removeItem('rememberMe');
     await supabase.auth.signOut();
     setUserRole(null);
-    setHasNFSeAccess(false);
     navigate('/');
   };
 
@@ -205,7 +176,6 @@ export function useAuth() {
     userRole,
     mustChangePassword,
     setMustChangePassword,
-    hasNFSeAccess,
     loading,
     signIn,
     signUp,

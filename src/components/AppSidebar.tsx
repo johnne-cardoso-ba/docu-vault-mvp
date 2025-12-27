@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Upload, LogOut, UserCog, MessageSquare, Headset, User, BarChart3, Settings, Receipt } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, LogOut, UserCog, MessageSquare, Headset, User, BarChart3 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,7 +20,7 @@ import logo from '@/assets/logo-branca.png';
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { userRole, hasNFSeAccess, signOut } = useAuth();
+  const { userRole, signOut } = useAuth();
   const currentPath = location.pathname;
 
   const adminItems = [
@@ -29,7 +29,6 @@ export function AppSidebar() {
     { title: 'Colaboradores', url: '/colaboradores', icon: UserCog },
     { title: 'Atendimento', url: '/solicitacoes-internas', icon: Headset },
     { title: 'Documentos', url: '/documentos', icon: FileText },
-    { title: 'NFS-e', url: '/nfse', icon: Receipt },
     { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },
   ];
 
@@ -38,16 +37,12 @@ export function AppSidebar() {
     { title: 'Clientes', url: '/clientes', icon: Users },
     { title: 'Atendimento', url: '/solicitacoes-internas', icon: Headset },
     { title: 'Documentos', url: '/documentos', icon: FileText },
-    { title: 'NFS-e', url: '/nfse', icon: Receipt },
   ];
 
   const clienteItems = [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
     { title: 'Documentos', url: '/documentos', icon: FileText },
     { title: 'Solicitações', url: '/solicitacoes', icon: MessageSquare },
-    ...(hasNFSeAccess ? [
-      { title: 'Minhas NFS-e', url: '/nfse/cliente', icon: Receipt }
-    ] : []),
   ];
 
   const items = 
