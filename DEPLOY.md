@@ -1,277 +1,161 @@
-# Deploy na VPS Hetzner - Ubuntu 22
+# 🚀 Deploy na VPS - Escritura AI
 
-Este guia mostra como fazer deploy do projeto na sua VPS Hetzner com Ubuntu 22.
+Guia completo para hospedar o sistema na sua VPS com Ubuntu 22+.
 
-## 1. Conectar ao GitHub
+> **Nota:** Este projeto usa o Lovable Cloud (Supabase) como backend. Apenas o **frontend** será hospedado na VPS. O banco de dados continua no Lovable Cloud.
 
-1. No Lovable, clique em **GitHub** → **Connect to GitHub**
-2. Autorize o Lovable GitHub App
-3. Selecione sua conta/organização
-4. Clique em **Create Repository** para criar o repositório com seu código
+---
 
-⚠️ **Importante**: Após conectar ao GitHub, qualquer mudança no Lovable sincroniza automaticamente com o GitHub (e vice-versa).
+## Pré-requisitos
 
-## 2. Preparar a VPS
+- VPS com Ubuntu 22.04+ (mínimo 1GB RAM, 20GB disco)
+- Domínio apontado para o IP da VPS (registro A no DNS)
+- Acesso SSH como root
 
-### 2.1. Instalar Dependências
+---
 
-```bash
-# Conectar na VPS
-ssh root@seu-ip-da-vps
-
-# Atualizar sistema
-apt update && apt upgrade -y
-
-# Instalar Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh
-bash nodesource_setup.sh
-apt-get install -y nodejs
-rm nodesource_setup.sh
-node --version
-npm --version
-
-# Instalar Git
-apt install -y git
-
-# Instalar Nginx
-apt install -y nginx
-
-# Instalar PM2 (gerenciador de processos)
-npm install -g pm2
-
-# Criar usuário para a aplicação
-adduser --system --group --home /opt/app --shell /bin/bash appuser
-```
-
-### 2.2. Configurar Firewall
+## Opção 1: Instalação Rápida (Recomendado)
 
 ```bash
-# Permitir SSH, HTTP e HTTPS
-ufw allow OpenSSH
-ufw allow 'Nginx Full'
-ufw enable
-```
+# 1. Conectar na VPS
+ssh root@SEU-IP-VPS
 
-## 3. Deploy da Aplicação
+# 2. Baixar e executar o script de setup
+curl -sSL https://raw.githubusercontent.com/SEU-USUARIO/SEU-REPO/main/setup-vps.sh | bash
 
-### 3.1. Clonar Repositório
-
-```bash
-# IMPORTANTE: Clone dentro do diretório /opt/app
+# 3. Clonar o repositório
 cd /opt/app
-
-# Clonar repositório (substitua pela URL do seu repo GitHub)
-git clone https://github.com/seu-usuario/seu-repositorio.git .
-
-# Dar permissões corretas
+git clone https://github.com/SEU-USUARIO/SEU-REPO.git .
 chown -R appuser:appuser /opt/app
 
-# Verificar se os arquivos foram clonados
-ls -la /opt/app
-# Deve mostrar: package.json, src/, public/, etc.
-```
-
-### 3.2. Configurar Variáveis de Ambiente
-
-```bash
-# Criar arquivo .env
+# 4. Configurar variáveis de ambiente
 nano /opt/app/.env
 ```
 
-Cole as variáveis (copie do arquivo .env do Lovable):
+Conteúdo do `.env`:
 ```env
-VITE_SUPABASE_URL=sua-url-do-supabase
-VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-publica
-VITE_SUPABASE_PROJECT_ID=seu-project-id
+VITE_SUPABASE_URL=https://mpqhmmdggsymyhsczucs.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wcWhtbWRnZ3N5bXloc2N6dWNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMzOTA5MTIsImV4cCI6MjA3ODk2NjkxMn0.LXbp8fPM96DFbasGBUVKADOkRK5Q3j3B06DF-GGBIk8
+VITE_SUPABASE_PROJECT_ID=mpqhmmdggsymyhsczucs
 ```
 
-### 3.3. Instalar e Build
-
 ```bash
-# Como usuário appuser
+# 5. Build e configurar Nginx
 cd /opt/app
+sudo -u appuser bash -c "npm install && npm run build"
+cp nginx.conf /etc/nginx/sites-available/app
+ln -sf /etc/nginx/sites-available/app /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl restart nginx
 
-# Instalar dependências
-sudo -u appuser bash -c "npm install"
-
-# Fazer build
-sudo -u appuser bash -c "npm run build"
-```
-
-## 4. Configurar Nginx
-
-```bash
-# Criar configuração do Nginx
-nano /etc/nginx/sites-available/app
-```
-
-Cole a configuração:
-```nginx
-server {
-    listen 80;
-    server_name seu-dominio.com www.seu-dominio.com;
-    
-    root /opt/app/dist;
-    index index.html;
-    
-    # Compressão
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-    
-    # Cache de assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-    
-    # SPA - redirecionar tudo para index.html
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-    
-    # Headers de segurança
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-}
-```
-
-Ativar site:
-```bash
-# Criar link simbólico
-ln -s /etc/nginx/sites-available/app /etc/nginx/sites-enabled/
-
-# Remover site padrão
-rm /etc/nginx/sites-enabled/default
-
-# Testar configuração
-nginx -t
-
-# Reiniciar Nginx
-systemctl restart nginx
-```
-
-## 5. Configurar SSL (HTTPS) com Let's Encrypt
-
-```bash
-# Instalar Certbot
+# 6. SSL (HTTPS)
 apt install -y certbot python3-certbot-nginx
-
-# Obter certificado (substitua pelo seu domínio)
-certbot --nginx -d seu-dominio.com -d www.seu-dominio.com
-
-# Renovação automática já está configurada
+certbot --nginx -d SEU-DOMINIO.COM
 ```
 
-## 6. Script de Deploy Automático
+---
 
-Para facilitar futuras atualizações, use o script `deploy.sh`:
+## Opção 2: Deploy Automático via GitHub Actions
+
+### Configurar Secrets no GitHub
+
+No repositório GitHub, vá em **Settings → Secrets and variables → Actions** e adicione:
+
+| Secret | Descrição |
+|--------|-----------|
+| `VPS_HOST` | IP da sua VPS (ex: `123.456.789.0`) |
+| `VPS_USER` | Usuário SSH (ex: `root`) |
+| `VPS_SSH_KEY` | Chave SSH privada (conteúdo do `~/.ssh/id_ed25519`) |
+
+### Gerar chave SSH
 
 ```bash
-# Tornar executável
-chmod +x /opt/app/deploy.sh
+# No seu computador local:
+ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_deploy
 
-# Executar deploy
-./deploy.sh
+# Copiar chave pública para a VPS:
+ssh-copy-id -i ~/.ssh/github_deploy.pub root@SEU-IP-VPS
+
+# O conteúdo de ~/.ssh/github_deploy (privada) vai no secret VPS_SSH_KEY
+cat ~/.ssh/github_deploy
 ```
 
-## 7. Atualizações Futuras
+### Como funciona
 
-Quando fizer mudanças no Lovable, elas são enviadas automaticamente para o GitHub. Para atualizar na VPS:
+Após configurar, todo push na branch `main` automaticamente:
+1. Conecta na VPS via SSH
+2. Puxa as últimas mudanças do GitHub
+3. Instala dependências e faz build
+4. Reinicia o Nginx
+
+---
+
+## Atualizações Manuais
 
 ```bash
-# Conectar na VPS
-ssh root@seu-ip-da-vps
-
-# Executar script de deploy
+ssh root@SEU-IP-VPS
 cd /opt/app
+chmod +x deploy.sh
 ./deploy.sh
 ```
 
-## 8. Monitoramento
+---
+
+## Comandos Úteis
 
 ```bash
-# Ver logs do Nginx
-tail -f /var/log/nginx/access.log
-tail -f /var/log/nginx/error.log
-
-# Verificar status do Nginx
+# Status do Nginx
 systemctl status nginx
+
+# Logs de acesso
+tail -f /var/log/nginx/app-access.log
+
+# Logs de erro
+tail -f /var/log/nginx/app-error.log
+
+# Refazer build completo
+cd /opt/app && rm -rf node_modules dist && sudo -u appuser bash -c "npm install && npm run build" && systemctl restart nginx
+
+# Testar configuração Nginx
+nginx -t
 ```
 
-## 9. Configurar Domínio
-
-1. No painel da Hetzner ou seu provedor de DNS:
-   - Adicione um registro **A** apontando para o IP da VPS
-   - Se usar www, adicione também: **CNAME** www → seu-dominio.com
-
-2. Aguarde propagação DNS (pode levar até 24h)
-
-3. Execute o Certbot para obter SSL
+---
 
 ## Troubleshooting
 
-### Erro 502 Bad Gateway
+### Página em branco ou 404
 ```bash
-# Verificar se o build foi feito
-ls -la /opt/app/dist
-
-```bash
-# Refazer build se necessário
-cd /opt/app
-sudo -u appuser bash -c "npm run build"
-systemctl restart nginx
+ls -la /opt/app/dist/   # Verificar se o build existe
+nginx -t                 # Testar configuração
 ```
 
-### Erro de Permissões
+### Erro de permissão
 ```bash
-# Corrigir permissões
 chown -R appuser:appuser /opt/app
 chmod -R 755 /opt/app/dist
 ```
 
-### Atualização não funciona
+### Build falha
 ```bash
-# Limpar cache e reinstalar
 cd /opt/app
-rm -rf node_modules dist
-npm install
-npm run build
-systemctl restart nginx
+rm -rf node_modules
+sudo -u appuser bash -c "npm install && npm run build"
 ```
 
-## Backup
+---
 
+## Nginx - Editar domínio
+
+Abra o arquivo `nginx.conf` na raiz do projeto e altere `server_name` para o seu domínio:
+
+```nginx
+server_name meu-dominio.com.br;
+```
+
+Depois:
 ```bash
-# Criar backup do projeto
-tar -czf /root/app-backup-$(date +%Y%m%d).tar.gz /opt/app
-
-# Backup automático diário (crontab)
-0 2 * * * tar -czf /root/backups/app-backup-$(date +\%Y\%m\%d).tar.gz /opt/app
+cp /opt/app/nginx.conf /etc/nginx/sites-available/app
+nginx -t && systemctl reload nginx
+certbot --nginx -d meu-dominio.com.br
 ```
-
-## Segurança Adicional
-
-```bash
-# Desabilitar login root via SSH
-nano /etc/ssh/sshd_config
-# Alterar: PermitRootLogin no
-
-# Criar usuário admin
-adduser admin
-usermod -aG sudo admin
-
-# Reiniciar SSH
-systemctl restart sshd
-
-# Instalar Fail2Ban
-apt install -y fail2ban
-systemctl enable fail2ban
-```
-
-## Recursos
-
-- **Nginx**: Para servir os arquivos estáticos
-- **Let's Encrypt**: SSL gratuito e automático
-- **Git**: Para puxar atualizações do GitHub
-- **UFW**: Firewall para segurança

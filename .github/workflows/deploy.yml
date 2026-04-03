@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+    name: Deploy Frontend to VPS
+
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -18,5 +20,11 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/app
-            chmod +x deploy.sh
-            sudo ./deploy.sh
+            git config --global --add safe.directory /opt/app
+            git fetch origin
+            git reset --hard origin/main
+            chown -R appuser:appuser /opt/app
+            sudo -u appuser bash -c "cd /opt/app && npm install && npm run build"
+            chmod -R 755 /opt/app/dist
+            systemctl reload nginx
+            echo "✅ Deploy concluído em $(date)"
